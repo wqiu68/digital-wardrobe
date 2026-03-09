@@ -1,3 +1,5 @@
+import posthog from 'posthog-js';
+
 async function hashPassword(password) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password + 'dw-v1');
@@ -28,6 +30,8 @@ export async function register(username, password) {
   accounts[trimmed.toLowerCase()] = { username: trimmed, hash, createdAt: Date.now() };
   saveAccounts(accounts);
   startSession(trimmed);
+  posthog.identify(trimmed.toLowerCase());
+  posthog.capture('account_created', { username: trimmed });
   return trimmed;
 }
 
@@ -38,6 +42,8 @@ export async function login(username, password) {
   const hash = await hashPassword(password);
   if (hash !== account.hash) throw new Error('Incorrect password.');
   startSession(account.username);
+  posthog.identify(account.username.toLowerCase());
+  posthog.capture('user_logged_in');
   return account.username;
 }
 

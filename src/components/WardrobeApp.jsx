@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import posthog from 'posthog-js';
 import { logout } from '../utils/auth';
 import { getItems, addItem, updateItem, deleteItem } from '../utils/wardrobe';
 import ItemModal, { CATEGORIES } from './ItemModal';
@@ -99,6 +100,7 @@ export default function WardrobeApp({ user, onLogout }) {
       setActiveCategory(formData.category);
       setModal(null);
       setError('');
+      posthog.capture('item_added', { category: formData.category, occasions: formData.occasions });
     } catch (e) {
       setError(e.message || 'Could not save item.');
     }
