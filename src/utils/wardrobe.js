@@ -86,7 +86,9 @@ export async function deleteItem(id) {
 
 export async function migrateItems(localItems) {
   const { data: { user: authUser } } = await supabase.auth.getUser();
-  const rows = localItems.map((item, index) => ({
+  const validItems = localItems.filter(item => item && item.name);
+  if (!validItems.length) return;
+  const rows = validItems.map((item, index) => ({
     user_id: authUser.id,
     name: item.name || '',
     brand: item.brand || '',

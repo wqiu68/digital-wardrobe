@@ -9,15 +9,13 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for an existing session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user?.user_metadata?.username || null);
+      setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Keep user state in sync with Supabase auth events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user?.user_metadata?.username || null);
+      setUser(session?.user ?? null);
     });
 
     return () => subscription.unsubscribe();
@@ -39,9 +37,10 @@ export default function App() {
     );
   }
 
-  if (!user) {
-    return <AuthScreen onAuth={setUser} />;
-  }
+  if (!user) return <AuthScreen onAuth={setUser} />;
 
-  return <WardrobeApp user={user} onLogout={handleLogout} />;
+  // Display name: Google name, or email prefix
+  const displayName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'you';
+
+  return <WardrobeApp user={user} displayName={displayName} onLogout={handleLogout} />;
 }

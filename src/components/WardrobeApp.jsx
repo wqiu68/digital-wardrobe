@@ -122,7 +122,7 @@ function CategorySection({ category, items, onEdit, onDelete }) {
   );
 }
 
-export default function WardrobeApp({ user, onLogout }) {
+export default function WardrobeApp({ user, displayName, onLogout }) {
   const [items, setItems] = useState([]);
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [activeOccasion, setActiveOccasion] = useState('ALL');
@@ -138,30 +138,36 @@ export default function WardrobeApp({ user, onLogout }) {
 
   async function migrateFromLocalStorage() {
     try {
-      const itemsKey = Object.keys(localStorage).find(k => k.startsWith('dw:items:'));
-      if (!itemsKey) return;
-      const local = JSON.parse(localStorage.getItem(itemsKey) || '[]');
-      if (!local.length) return;
-      await migrateItems(local);
-      localStorage.removeItem(itemsKey);
+      // Collect items from ALL dw:items:* keys
+      const itemsKeys = Object.keys(localStorage).filter(k => k.startsWith('dw:items:'));
+      if (!itemsKeys.length) return;
+      const allItems = itemsKeys.flatMap(k => JSON.parse(localStorage.getItem(k) || '[]'));
+      if (!allItems.length) return;
+      // Clear localStorage FIRST so a second refresh won't re-run migration
+      itemsKeys.forEach(k => localStorage.removeItem(k));
+      await migrateItems(allItems);
     } catch (e) {
-      console.error('Migration failed:', e);
+      throw new Error('Migration failed: ' + e.message);
     }
   }
 
   async function loadItems() {
     try {
       const data = await getItems();
-      // One-time migration from localStorage if cloud is empty
       if (data.length === 0) {
-        await migrateFromLocalStorage();
+        const itemsKeys = Object.keys(localStorage).filter(k => k.startsWith('dw:items:'));
+        if (itemsKeys.length > 0) {
+          setError('Importing your items…');
+          await migrateFromLocalStorage();
+          setError('');
+        }
         const migrated = await getItems();
         setItems(migrated);
       } else {
         setItems(data);
       }
     } catch (e) {
-      setError('Could not load wardrobe.');
+      setError('Error: ' + e.message);
     } finally {
       setLoadingItems(false);
     }
@@ -253,7 +259,7 @@ export default function WardrobeApp({ user, onLogout }) {
           </div>
 
           <div className="flex items-center gap-5">
-            <span style={{ ...sans, fontSize: '11px', color: '#b0a89e' }} className="hidden sm:block">{user}</span>
+            <span style={{ ...sans, fontSize: '11px', color: '#b0a89e' }} className="hidden sm:block">{displayName}</span>
             <button
               onClick={() => setModal({ mode: 'add' })}
               style={{ ...sans, fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', backgroundColor: '#1a1713', color: '#FAF8F5' }}
