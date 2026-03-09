@@ -4,7 +4,7 @@ import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSe
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import posthog from 'posthog-js';
-import { getItems, addItem, updateItem, deleteItem, reorderItems } from '../utils/wardrobe';
+import { getItems, addItem, updateItem, deleteItem, reorderItems, migrateItems } from '../utils/wardrobe';
 import ItemModal, { CATEGORIES } from './ItemModal';
 
 const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
@@ -136,10 +136,30 @@ export default function WardrobeApp({ user, onLogout }) {
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
   );
 
+  async function migrateFromLocalStorage() {
+    try {
+      const itemsKey = Object.keys(localStorage).find(k => k.startsWith('dw:items:'));
+      if (!itemsKey) return;
+      const local = JSON.parse(localStorage.getItem(itemsKey) || '[]');
+      if (!local.length) return;
+      await migrateItems(local);
+      localStorage.removeItem(itemsKey);
+    } catch (e) {
+      console.error('Migration failed:', e);
+    }
+  }
+
   async function loadItems() {
     try {
       const data = await getItems();
-      setItems(data);
+      // One-time migration from localStorage if cloud is empty
+      if (data.length === 0) {
+        await migrateFromLocalStorage();
+        const migrated = await getItems();
+        setItems(migrated);
+      } else {
+        setItems(data);
+      }
     } catch (e) {
       setError('Could not load wardrobe.');
     } finally {
@@ -289,11 +309,12 @@ export default function WardrobeApp({ user, onLogout }) {
                     letterSpacing: '0.12em',
                     textTransform: 'uppercase',
                     color: isActive ? '#1a1713' : '#b0a89e',
+                    borderTop: 'none',
+                    borderLeft: 'none',
+                    borderRight: 'none',
                     borderBottom: isActive ? '1px solid #1a1713' : '1px solid transparent',
                     marginBottom: '-1px',
                     background: 'none',
-                    border: 'none',
-                    borderBottom: isActive ? '1px solid #1a1713' : '1px solid transparent',
                   }}
                 >
                   {cat.label} {count > 0 && <span style={{ opacity: 0.5, fontWeight: 300 }}>{count}</span>}

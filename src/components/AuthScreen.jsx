@@ -74,12 +74,13 @@ export default function AuthScreen({ onAuth }) {
                   letterSpacing: '0.12em',
                   textTransform: 'uppercase',
                   color: mode === m ? '#1a1713' : '#b0a89e',
+                  borderTop: 'none',
+                  borderLeft: 'none',
+                  borderRight: 'none',
                   borderBottom: mode === m ? '1px solid #1a1713' : '1px solid transparent',
                   paddingBottom: '12px',
                   marginBottom: '-1px',
                   background: 'none',
-                  border: 'none',
-                  borderBottom: mode === m ? '1px solid #1a1713' : '1px solid transparent',
                   cursor: 'pointer',
                 }}
               >

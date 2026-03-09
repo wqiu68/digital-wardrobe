@@ -84,6 +84,26 @@ export async function deleteItem(id) {
   if (error) throw error;
 }
 
+export async function migrateItems(localItems) {
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const rows = localItems.map((item, index) => ({
+    user_id: authUser.id,
+    name: item.name || '',
+    brand: item.brand || '',
+    color: item.color || '',
+    size: item.size || '',
+    category: item.category || 'TOPS',
+    occasions: item.occasions || [],
+    notes: item.notes || '',
+    source_url: item.sourceUrl || '',
+    image: item.image && item.image.length <= MAX_IMAGE_BYTES ? item.image : '',
+    added_at: item.addedAt || Date.now(),
+    sort_order: index,
+  }));
+  const { error } = await supabase.from('wardrobe_items').insert(rows);
+  if (error) throw error;
+}
+
 export async function reorderItems(orderedIds) {
   await Promise.all(
     orderedIds.map((id, index) =>
