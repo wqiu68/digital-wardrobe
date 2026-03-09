@@ -4,7 +4,6 @@ import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSe
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import posthog from 'posthog-js';
-import { logout } from '../utils/auth';
 import { getItems, addItem, updateItem, deleteItem, reorderItems } from '../utils/wardrobe';
 import ItemModal, { CATEGORIES } from './ItemModal';
 
@@ -40,8 +39,6 @@ function SortableItemCard({ item, onEdit, onDelete }) {
           )
         }
 
-        {/* Hover overlay */}
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(26,23,19,0)' }} />
         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" style={{ background: 'rgba(26,23,19,0.04)' }} />
 
         {/* Drag handle */}
@@ -126,24 +123,36 @@ function CategorySection({ category, items, onEdit, onDelete }) {
 }
 
 export default function WardrobeApp({ user, onLogout }) {
-  const [items, setItems] = useState(() => getItems(user));
+  const [items, setItems] = useState([]);
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [activeOccasion, setActiveOccasion] = useState('ALL');
   const [modal, setModal] = useState(null);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
+  const [loadingItems, setLoadingItems] = useState(true);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
   );
 
-  useEffect(() => { setItems(getItems(user)); }, [user]);
-
-  function handleAdd(formData) {
+  async function loadItems() {
     try {
-      addItem(user, formData);
-      setItems(getItems(user));
+      const data = await getItems();
+      setItems(data);
+    } catch (e) {
+      setError('Could not load wardrobe.');
+    } finally {
+      setLoadingItems(false);
+    }
+  }
+
+  useEffect(() => { loadItems(); }, []);
+
+  async function handleAdd(formData) {
+    try {
+      await addItem(formData);
+      await loadItems();
       setActiveCategory(formData.category);
       setModal(null);
       setError('');
@@ -153,10 +162,10 @@ export default function WardrobeApp({ user, onLogout }) {
     }
   }
 
-  function handleUpdate(formData) {
+  async function handleUpdate(formData) {
     try {
-      updateItem(user, modal.item.id, formData);
-      setItems(getItems(user));
+      await updateItem(modal.item.id, formData);
+      await loadItems();
       setModal(null);
       setError('');
     } catch (e) {
@@ -164,19 +173,23 @@ export default function WardrobeApp({ user, onLogout }) {
     }
   }
 
-  function handleDelete(id) {
+  async function handleDelete(id) {
     if (!confirm('Remove this piece from your wardrobe?')) return;
-    deleteItem(user, id);
-    setItems(getItems(user));
+    try {
+      await deleteItem(id);
+      await loadItems();
+    } catch (e) {
+      setError(e.message || 'Could not delete item.');
+    }
   }
 
-  function handleDragEnd({ active, over }) {
+  async function handleDragEnd({ active, over }) {
     if (!over || active.id === over.id) return;
     const oldIndex = items.findIndex(i => i.id === active.id);
     const newIndex = items.findIndex(i => i.id === over.id);
     const reordered = arrayMove(items, oldIndex, newIndex);
     setItems(reordered);
-    reorderItems(user, reordered.map(i => i.id));
+    await reorderItems(reordered.map(i => i.id));
   }
 
   const tabs = [ALL, ...CATEGORIES];
@@ -205,12 +218,10 @@ export default function WardrobeApp({ user, onLogout }) {
       <header className="sticky top-0 z-20" style={{ backgroundColor: '#FAF8F5', borderBottom: '1px solid #e8e3de' }}>
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between gap-6">
 
-          {/* Logo */}
           <h1 style={{ ...serif, fontSize: '20px', fontWeight: 400, color: '#1a1713', fontStyle: 'italic', letterSpacing: '-0.01em' }}>
             My Wardrobe
           </h1>
 
-          {/* Search */}
           <div className="flex-1 max-w-sm hidden sm:block">
             <input
               value={search}
@@ -221,7 +232,6 @@ export default function WardrobeApp({ user, onLogout }) {
             />
           </div>
 
-          {/* Right */}
           <div className="flex items-center gap-5">
             <span style={{ ...sans, fontSize: '11px', color: '#b0a89e' }} className="hidden sm:block">{user}</span>
             <button
@@ -232,7 +242,7 @@ export default function WardrobeApp({ user, onLogout }) {
               + Add
             </button>
             <button
-              onClick={() => { logout(); onLogout(); }}
+              onClick={onLogout}
               style={{ ...sans, fontSize: '11px', color: '#b0a89e', letterSpacing: '0.05em' }}
               className="hover:opacity-60 transition-opacity"
             >
@@ -329,7 +339,11 @@ export default function WardrobeApp({ user, onLogout }) {
 
       {/* Grid */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-10">
-        {filtered.length === 0 ? (
+        {loadingItems ? (
+          <div className="flex items-center justify-center py-36">
+            <p style={{ ...serif, fontSize: '20px', fontWeight: 300, color: '#c9b99a', fontStyle: 'italic' }}>loading your wardrobe…</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-36 text-center">
             <p style={{ ...serif, fontSize: '28px', fontWeight: 300, color: '#c9b99a', fontStyle: 'italic', marginBottom: '24px' }}>
               {search ? 'No results.' : items.length === 0 ? 'Your wardrobe is empty.' : 'Nothing in this category.'}
@@ -345,7 +359,6 @@ export default function WardrobeApp({ user, onLogout }) {
             )}
           </div>
         ) : activeCategory === 'ALL' ? (
-          // All view: grouped by category with headers
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={filtered.map(i => i.id)} strategy={rectSortingStrategy}>
               <AnimatePresence>
@@ -363,7 +376,6 @@ export default function WardrobeApp({ user, onLogout }) {
             </SortableContext>
           </DndContext>
         ) : (
-          // Single category view: plain grid
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={filtered.map(i => i.id)} strategy={rectSortingStrategy}>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-4 gap-y-8">

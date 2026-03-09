@@ -1,73 +1,93 @@
-const storageKey = (username) => `dw:items:${username.toLowerCase()}`;
+import { supabase } from './supabase';
 
-const MAX_IMAGE_BYTES = 80000; // ~80KB base64 — keeps images small enough to fit many items
+const MAX_IMAGE_BYTES = 80000;
 
-function load(username) {
-  try {
-    const items = JSON.parse(localStorage.getItem(storageKey(username)) || '[]');
-    // One-time migration: strip any oversized images already in storage
-    const cleaned = items.map(item =>
-      item.image && item.image.length > MAX_IMAGE_BYTES
-        ? { ...item, image: '' }
-        : item
-    );
-    if (cleaned.some((item, i) => item.image !== items[i].image)) {
-      localStorage.setItem(storageKey(username), JSON.stringify(cleaned));
-    }
-    return cleaned;
-  } catch { return []; }
+function toDb(item) {
+  return {
+    name: item.name,
+    brand: item.brand || '',
+    color: item.color || '',
+    size: item.size || '',
+    category: item.category,
+    occasions: item.occasions || [],
+    notes: item.notes || '',
+    source_url: item.sourceUrl || '',
+    image: item.image && item.image.length <= MAX_IMAGE_BYTES ? item.image : '',
+    added_at: item.addedAt || Date.now(),
+    sort_order: item.sort_order ?? null,
+  };
 }
 
-function persist(username, items) {
-  try {
-    localStorage.setItem(storageKey(username), JSON.stringify(items));
-  } catch (e) {
-    if (e.name === 'QuotaExceededError' || e.code === 22) {
-      // Strip images from all items and try again
-      const stripped = items.map(item => ({ ...item, image: '' }));
-      try {
-        localStorage.setItem(storageKey(username), JSON.stringify(stripped));
-        throw new Error('QUOTA: Your wardrobe was saved but images were removed to free up space. Try uploading smaller images.');
-      } catch (e2) {
-        if (e2.message.startsWith('QUOTA:')) throw e2;
-        throw new Error('Storage is full. Please delete some items.');
-      }
-    }
-    throw e;
-  }
+function fromDb(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    brand: row.brand,
+    color: row.color,
+    size: row.size,
+    category: row.category,
+    occasions: row.occasions || [],
+    notes: row.notes,
+    sourceUrl: row.source_url,
+    image: row.image,
+    addedAt: row.added_at,
+    sort_order: row.sort_order,
+  };
 }
 
-export function getItems(username) {
-  return load(username);
+export async function getItems() {
+  const { data, error } = await supabase
+    .from('wardrobe_items')
+    .select('*')
+    .order('sort_order', { ascending: true, nullsFirst: false })
+    .order('added_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(fromDb);
 }
 
-export function addItem(username, item) {
-  const items = load(username);
-  const newItem = { ...item, id: crypto.randomUUID(), addedAt: Date.now() };
-  items.unshift(newItem);
-  persist(username, items);
-  return newItem;
+export async function addItem(item) {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // New items prepend: find min sort_order and go one lower
+  const { data: existing } = await supabase
+    .from('wardrobe_items')
+    .select('sort_order')
+    .order('sort_order', { ascending: true })
+    .limit(1);
+  const minSort = existing?.[0]?.sort_order ?? 0;
+
+  const { data, error } = await supabase
+    .from('wardrobe_items')
+    .insert({ ...toDb(item), user_id: user.id, sort_order: minSort - 1, added_at: Date.now() })
+    .select()
+    .single();
+  if (error) throw error;
+  return fromDb(data);
 }
 
-export function updateItem(username, id, patch) {
-  const items = load(username);
-  const idx = items.findIndex(i => i.id === id);
-  if (idx === -1) return;
-  items[idx] = { ...items[idx], ...patch };
-  persist(username, items);
-  return items[idx];
+export async function updateItem(id, patch) {
+  const { data, error } = await supabase
+    .from('wardrobe_items')
+    .update(toDb(patch))
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return fromDb(data);
 }
 
-export function deleteItem(username, id) {
-  const items = load(username).filter(i => i.id !== id);
-  persist(username, items);
+export async function deleteItem(id) {
+  const { error } = await supabase
+    .from('wardrobe_items')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
 }
 
-export function reorderItems(username, orderedIds) {
-  const items = load(username);
-  const map = Object.fromEntries(items.map(i => [i.id, i]));
-  const reordered = orderedIds.map(id => map[id]).filter(Boolean);
-  // append any items not in orderedIds (safety net)
-  items.forEach(i => { if (!orderedIds.includes(i.id)) reordered.push(i); });
-  persist(username, reordered);
+export async function reorderItems(orderedIds) {
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      supabase.from('wardrobe_items').update({ sort_order: index }).eq('id', id)
+    )
+  );
 }
