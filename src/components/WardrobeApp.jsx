@@ -62,16 +62,24 @@ function SortableItemCard({ item, onEdit, onDelete }) {
         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={() => onEdit(item)}
-            className="w-7 h-7 flex items-center justify-center text-xs transition-colors"
+            className="w-7 h-7 flex items-center justify-center transition-colors"
             style={{ backgroundColor: '#FAF8F5', color: '#a09890', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}
             title="Edit"
-          >✏️</button>
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2">
+              <path d="M8.5 1.5l2 2L4 10H2v-2L8.5 1.5z"/>
+            </svg>
+          </button>
           <button
             onClick={() => onDelete(item.id)}
-            className="w-7 h-7 flex items-center justify-center text-xs transition-colors"
+            className="w-7 h-7 flex items-center justify-center transition-colors"
             style={{ backgroundColor: '#FAF8F5', color: '#a09890', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}
             title="Delete"
-          >🗑</button>
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2">
+              <path d="M2 3h8M5 3V2h2v1M3 3l.5 7h5L9 3"/>
+            </svg>
+          </button>
         </div>
       </div>
 
