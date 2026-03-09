@@ -21,7 +21,7 @@ const ALL_OCCASIONS = OCCASIONS.map(o => o.id);
 
 const EMPTY = { name: '', brand: '', color: '', size: '', category: 'TOPS', occasions: ALL_OCCASIONS, notes: '', image: '', sourceUrl: '' };
 
-function compressImage(dataUrl, maxDim = 600, quality = 0.7) {
+function compressImage(dataUrl, maxDim = 400, quality = 0.6) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {

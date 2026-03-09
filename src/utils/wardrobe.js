@@ -1,8 +1,21 @@
 const storageKey = (username) => `dw:items:${username.toLowerCase()}`;
 
+const MAX_IMAGE_BYTES = 80000; // ~80KB base64 — keeps images small enough to fit many items
+
 function load(username) {
-  try { return JSON.parse(localStorage.getItem(storageKey(username)) || '[]'); }
-  catch { return []; }
+  try {
+    const items = JSON.parse(localStorage.getItem(storageKey(username)) || '[]');
+    // One-time migration: strip any oversized images already in storage
+    const cleaned = items.map(item =>
+      item.image && item.image.length > MAX_IMAGE_BYTES
+        ? { ...item, image: '' }
+        : item
+    );
+    if (cleaned.some((item, i) => item.image !== items[i].image)) {
+      localStorage.setItem(storageKey(username), JSON.stringify(cleaned));
+    }
+    return cleaned;
+  } catch { return []; }
 }
 
 function persist(username, items) {
