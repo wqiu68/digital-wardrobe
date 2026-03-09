@@ -149,121 +149,114 @@ export default function ItemModal({ item, onSave, onClose }) {
 
   const cat = CATEGORIES.find(c => c.id === form.category);
 
+  const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
+  const sans  = { fontFamily: "'Inter', sans-serif" };
+  const inputCls = "w-full bg-transparent border-0 border-b py-2 text-sm focus:outline-none transition-colors placeholder:text-black/20";
+  const labelCls = { ...sans, fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#a09890', display: 'block', marginBottom: '8px' };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Panel */}
-      <div className="relative bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-xl overflow-hidden max-h-[95vh] flex flex-col">
+      <div className="relative w-full sm:max-w-lg shadow-2xl overflow-hidden max-h-[95vh] flex flex-col" style={{ backgroundColor: '#FAF8F5' }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100">
-          <h2 className="font-semibold text-stone-800">{item ? 'Edit piece' : 'Add new piece'}</h2>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-600 text-xl leading-none">✕</button>
+        <div className="flex items-center justify-between px-7 py-5" style={{ borderBottom: '1px solid #e8e3de' }}>
+          <h2 style={{ ...serif, fontSize: '20px', fontWeight: 300, color: '#1a1713', fontStyle: 'italic' }}>
+            {item ? 'edit piece' : 'add new piece'}
+          </h2>
+          <button onClick={onClose} style={{ ...sans, color: '#b0a89e', fontSize: '16px' }} className="hover:opacity-60 transition-opacity leading-none">✕</button>
         </div>
 
         <form onSubmit={handleSubmit} className="overflow-y-auto flex-1">
-          <div className="p-5 space-y-5">
+          <div className="px-7 py-6 space-y-6">
 
-            {/* URL lookup — only show when adding, not editing */}
+            {/* URL lookup */}
             {!item && (
-              <div className="bg-stone-50 rounded-xl p-3 space-y-2">
-                <label className="block text-xs font-medium text-stone-500 uppercase tracking-wide">
-                  Paste a product link to autofill ✨
-                </label>
-                <div className="flex gap-2">
+              <div className="space-y-3 pb-6" style={{ borderBottom: '1px solid #e8e3de' }}>
+                <label style={labelCls}>paste a product link to autofill</label>
+                <div className="flex gap-3">
                   <input
                     type="url"
                     value={urlInput}
                     onChange={e => setUrlInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleLookup())}
-                    placeholder="https://www.zara.com/…"
-                    className="flex-1 border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-300 min-w-0"
+                    placeholder="https://www.sezane.com/…"
+                    style={{ ...sans, borderColor: '#d4ccc4' }}
+                    className="flex-1 bg-transparent border-b py-2 text-sm focus:outline-none transition-colors placeholder:text-black/20 min-w-0"
                   />
                   <button
                     type="button"
                     onClick={handleLookup}
                     disabled={fetching || !urlInput.trim()}
-                    className="shrink-0 px-4 py-2 bg-stone-800 text-white text-sm rounded-lg font-medium hover:bg-stone-700 disabled:opacity-40 transition-colors"
+                    style={{ ...sans, fontSize: '10px', letterSpacing: '0.2em', backgroundColor: '#1a1713', color: '#FAF8F5' }}
+                    className="shrink-0 px-4 py-2 uppercase hover:opacity-80 disabled:opacity-30 transition-opacity"
                   >
-                    {fetching ? '…' : 'Look up'}
+                    {fetching ? '…' : 'look up'}
                   </button>
                 </div>
-                {fetchError && (
-                  <p className="text-xs text-red-500">{fetchError} You can fill in the details below manually.</p>
-                )}
-                {fetching && (
-                  <p className="text-xs text-stone-400 animate-pulse">Fetching product info…</p>
-                )}
+                {fetchError && <p style={{ ...sans, fontSize: '11px', color: '#c0392b' }}>{fetchError} Fill in details manually.</p>}
+                {fetching && <p style={{ ...sans, fontSize: '11px', color: '#b0a89e' }} className="animate-pulse">fetching product info…</p>}
               </div>
             )}
 
             {/* Image + Name + Brand */}
-            <div className="flex gap-4 items-start">
-              <div className="shrink-0 flex flex-col gap-1">
+            <div className="flex gap-5 items-start">
+              <div className="shrink-0 flex flex-col gap-2">
                 <button
                   type="button"
                   onClick={() => fileRef.current.click()}
-                  className={`w-24 h-24 rounded-xl border-2 border-dashed flex flex-col items-center justify-center transition-colors overflow-hidden
-                    ${imagePreview ? 'border-transparent' : 'border-stone-300 hover:border-stone-400 text-stone-400'}`}
+                  className="w-24 h-32 flex flex-col items-center justify-center transition-colors overflow-hidden"
+                  style={{ border: imagePreview ? 'none' : '1px dashed #c9b99a', backgroundColor: imagePreview ? 'transparent' : '#f5f0eb' }}
                 >
                   {imagePreview
                     ? <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
-                    : <><span className="text-2xl mb-1">📷</span><span className="text-xs text-center leading-tight">Upload<br/>or paste</span></>
+                    : <><span className="text-lg mb-1" style={{ color: '#c9b99a' }}>↑</span><span style={{ ...sans, fontSize: '10px', color: '#c9b99a', letterSpacing: '0.1em', textAlign: 'center', lineHeight: 1.4 }}>upload<br/>or paste</span></>
                   }
                 </button>
                 {imagePreview
-                  ? <button
-                      type="button"
-                      onClick={() => { setImagePreview(''); set('image', ''); }}
-                      className="text-xs text-stone-400 hover:text-red-400 text-center"
-                    >Remove</button>
-                  : <p className="text-xs text-stone-400 text-center leading-tight w-24">⌘V to paste</p>
+                  ? <button type="button" onClick={() => { setImagePreview(''); set('image', ''); }} style={{ ...sans, fontSize: '10px', color: '#b0a89e' }} className="hover:text-red-400 transition-colors text-center">remove</button>
+                  : <p style={{ ...sans, fontSize: '10px', color: '#c9b99a', textAlign: 'center', lineHeight: 1.4, width: '96px' }}>⌘V to paste</p>
                 }
                 <input ref={fileRef} type="file" accept="image/*" onChange={handleImageFile} className="hidden" />
               </div>
 
-              <div className="flex-1 space-y-3">
+              <div className="flex-1 space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-stone-500 uppercase tracking-wide mb-1">Item name *</label>
-                  <input
-                    value={form.name}
-                    onChange={e => set('name', e.target.value)}
-                    placeholder="e.g. Slim Fit Jeans"
-                    required
-                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-300"
-                  />
+                  <label style={labelCls}>item name *</label>
+                  <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Pétra blouse" required style={{ ...sans, borderColor: '#d4ccc4' }} className={inputCls} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-stone-500 uppercase tracking-wide mb-1">Brand</label>
-                  <input
-                    value={form.brand}
-                    onChange={e => set('brand', e.target.value)}
-                    placeholder="e.g. Zara"
-                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-300"
-                  />
+                  <label style={labelCls}>brand</label>
+                  <input value={form.brand} onChange={e => set('brand', e.target.value)} placeholder="e.g. Sézane" style={{ ...sans, borderColor: '#d4ccc4' }} className={inputCls} />
                 </div>
               </div>
             </div>
 
             {/* Category */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 uppercase tracking-wide mb-2">Category</label>
-              <div className="grid grid-cols-4 gap-2">
+              <label style={labelCls}>category</label>
+              <div className="grid grid-cols-4 gap-1.5">
                 {CATEGORIES.map(c => (
                   <button
                     key={c.id}
                     type="button"
                     onClick={() => set('category', c.id)}
-                    className={`flex flex-col items-center py-2 px-1 rounded-xl border text-xs font-medium transition-all ${
-                      form.category === c.id
-                        ? `${c.bg} ${c.border} ${c.text} border-2`
-                        : 'bg-white border-stone-200 text-stone-500 hover:border-stone-300'
-                    }`}
+                    style={{
+                      ...sans,
+                      fontSize: '10px',
+                      letterSpacing: '0.12em',
+                      textTransform: 'lowercase',
+                      backgroundColor: form.category === c.id ? '#1a1713' : 'transparent',
+                      color: form.category === c.id ? '#FAF8F5' : '#a09890',
+                      border: `1px solid ${form.category === c.id ? '#1a1713' : '#e0d9d2'}`,
+                      padding: '8px 4px',
+                    }}
+                    className="transition-all hover:border-black/30"
                   >
-                    <span className="text-lg mb-0.5">{c.emoji}</span>
-                    {c.label}
+                    {c.label.toLowerCase()}
                   </button>
                 ))}
               </div>
@@ -271,8 +264,8 @@ export default function ItemModal({ item, onSave, onClose }) {
 
             {/* Occasion */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 uppercase tracking-wide mb-2">Occasion</label>
-              <div className="flex gap-2">
+              <label style={labelCls}>occasion</label>
+              <div className="flex gap-1.5">
                 {OCCASIONS.map(o => {
                   const active = (form.occasions || ALL_OCCASIONS).includes(o.id);
                   return (
@@ -280,14 +273,20 @@ export default function ItemModal({ item, onSave, onClose }) {
                       key={o.id}
                       type="button"
                       onClick={() => toggleOccasion(o.id)}
-                      className={`flex-1 flex flex-col items-center py-2 px-1 rounded-xl border text-xs font-medium transition-all ${
-                        active
-                          ? 'bg-stone-800 border-stone-800 text-white'
-                          : 'bg-white border-stone-200 text-stone-400 hover:border-stone-300'
-                      }`}
+                      style={{
+                        ...sans,
+                        fontSize: '10px',
+                        letterSpacing: '0.12em',
+                        flex: 1,
+                        padding: '8px 4px',
+                        textTransform: 'lowercase',
+                        backgroundColor: active ? '#1a1713' : 'transparent',
+                        color: active ? '#FAF8F5' : '#a09890',
+                        border: `1px solid ${active ? '#1a1713' : '#e0d9d2'}`,
+                      }}
+                      className="transition-all hover:border-black/30"
                     >
-                      <span className="text-lg mb-0.5">{o.emoji}</span>
-                      {o.label}
+                      {o.label.toLowerCase()}
                     </button>
                   );
                 })}
@@ -295,59 +294,52 @@ export default function ItemModal({ item, onSave, onClose }) {
             </div>
 
             {/* Color + Size */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-5">
               <div>
-                <label className="block text-xs font-medium text-stone-500 uppercase tracking-wide mb-1">Color</label>
-                <input
-                  value={form.color}
-                  onChange={e => set('color', e.target.value)}
-                  placeholder="e.g. Navy Blue"
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-300"
-                />
+                <label style={labelCls}>color</label>
+                <input value={form.color} onChange={e => set('color', e.target.value)} placeholder="e.g. ivory" style={{ ...sans, borderColor: '#d4ccc4' }} className={inputCls} />
               </div>
               <div>
-                <label className="block text-xs font-medium text-stone-500 uppercase tracking-wide mb-1">Size</label>
-                <input
-                  value={form.size}
-                  onChange={e => set('size', e.target.value)}
-                  placeholder="e.g. M, 32, 8"
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-300"
-                />
+                <label style={labelCls}>size</label>
+                <input value={form.size} onChange={e => set('size', e.target.value)} placeholder="e.g. S, 36, 8" style={{ ...sans, borderColor: '#d4ccc4' }} className={inputCls} />
               </div>
             </div>
 
             {/* Product link */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 uppercase tracking-wide mb-1">Product Link</label>
-              <input
-                type="url"
-                value={form.sourceUrl || ''}
-                onChange={e => set('sourceUrl', e.target.value)}
-                placeholder="https://www.zara.com/…"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-300"
-              />
+              <label style={labelCls}>product link</label>
+              <input type="url" value={form.sourceUrl || ''} onChange={e => set('sourceUrl', e.target.value)} placeholder="https://…" style={{ ...sans, borderColor: '#d4ccc4' }} className={inputCls} />
             </div>
 
             {/* Notes */}
             <div>
-              <label className="block text-xs font-medium text-stone-500 uppercase tracking-wide mb-1">Notes</label>
+              <label style={labelCls}>notes</label>
               <textarea
                 value={form.notes}
                 onChange={e => set('notes', e.target.value)}
-                placeholder="Occasion, how you style it, etc."
+                placeholder="how you style it, when to wear it…"
                 rows={2}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-300 resize-none"
+                style={{ ...sans, borderColor: '#d4ccc4' }}
+                className="w-full bg-transparent border-b py-2 text-sm focus:outline-none transition-colors placeholder:text-black/20 resize-none"
               />
             </div>
           </div>
 
           {/* Footer */}
-          <div className="flex gap-2 px-5 py-4 border-t border-stone-100 bg-stone-50">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-stone-200 text-stone-600 text-sm font-medium hover:bg-stone-100 transition-colors">
-              Cancel
+          <div className="flex gap-2 px-7 py-5" style={{ borderTop: '1px solid #e8e3de' }}>
+            <button
+              type="button" onClick={onClose}
+              style={{ ...sans, fontSize: '10px', letterSpacing: '0.2em', textTransform: 'lowercase', color: '#a09890', border: '1px solid #e0d9d2', flex: 1, padding: '12px' }}
+              className="hover:border-black/30 transition-colors"
+            >
+              cancel
             </button>
-            <button type="submit" className="flex-1 py-2.5 rounded-xl bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 transition-colors">
-              {item ? 'Save changes' : 'Add to wardrobe'}
+            <button
+              type="submit"
+              style={{ ...sans, fontSize: '10px', letterSpacing: '0.2em', textTransform: 'lowercase', backgroundColor: '#1a1713', color: '#FAF8F5', flex: 1, padding: '12px' }}
+              className="hover:opacity-80 transition-opacity"
+            >
+              {item ? 'save changes' : 'add to wardrobe'}
             </button>
           </div>
         </form>

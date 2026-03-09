@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { login, register } from '../utils/auth';
 
+const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
+const sans  = { fontFamily: "'Inter', sans-serif" };
+
 export default function AuthScreen({ onAuth }) {
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [mode, setMode] = useState('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -13,9 +16,7 @@ export default function AuthScreen({ onAuth }) {
     setError('');
     setLoading(true);
     try {
-      const user = mode === 'login'
-        ? await login(username, password)
-        : await register(username, password);
+      const user = mode === 'login' ? await login(username, password) : await register(username, password);
       onAuth(user);
     } catch (err) {
       setError(err.message);
@@ -24,45 +25,74 @@ export default function AuthScreen({ onAuth }) {
     }
   }
 
-  function switchMode() {
-    setMode(m => m === 'login' ? 'register' : 'login');
-    setError('');
-  }
-
   return (
-    <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex" style={{ backgroundColor: '#FAF8F5', fontFamily: "'Inter', sans-serif" }}>
 
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="text-4xl mb-2">🪞</div>
-          <h1 className="text-2xl font-bold text-stone-800 tracking-tight">My Wardrobe</h1>
-          <p className="text-stone-500 text-sm mt-1">Your digital closet</p>
+      {/* Left — brand panel */}
+      <div
+        className="hidden lg:flex flex-col justify-between w-[52%] p-16"
+        style={{ backgroundColor: '#f0ebe3' }}
+      >
+        <span style={{ ...sans, fontSize: '11px', letterSpacing: '0.3em', color: '#a09890', textTransform: 'uppercase' }}>
+          My Wardrobe
+        </span>
+
+        <div>
+          <h1 style={{ ...serif, fontSize: '80px', fontWeight: 300, color: '#1a1713', lineHeight: 1, marginBottom: '24px', fontStyle: 'italic' }}>
+            Your<br />Digital<br />Closet.
+          </h1>
+          <p style={{ ...sans, fontSize: '13px', color: '#a09890', lineHeight: 1.8, maxWidth: '260px' }}>
+            Catalogue every piece you own. Filter by occasion, discover new combinations.
+          </p>
         </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
+        <span style={{ ...sans, fontSize: '11px', color: '#c9b99a', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+          2026
+        </span>
+      </div>
+
+      {/* Right — form */}
+      <div className="flex-1 flex flex-col justify-center px-12 lg:px-16">
+        <div className="w-full max-w-xs">
+
+          {/* Mobile heading */}
+          <div className="lg:hidden mb-10">
+            <h1 style={{ ...serif, fontSize: '48px', fontWeight: 300, color: '#1a1713', fontStyle: 'italic', lineHeight: 1.1 }}>
+              My Wardrobe
+            </h1>
+          </div>
 
           {/* Mode tabs */}
-          <div className="flex rounded-lg bg-stone-100 p-1 mb-6">
-            {['login', 'register'].map(m => (
+          <div className="flex gap-8 mb-8" style={{ borderBottom: '1px solid #e8e3de' }}>
+            {[['login', 'Sign in'], ['register', 'Create account']].map(([m, label]) => (
               <button
                 key={m}
                 onClick={() => { setMode(m); setError(''); }}
-                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${
-                  mode === m
-                    ? 'bg-white text-stone-800 shadow-sm'
-                    : 'text-stone-500 hover:text-stone-700'
-                }`}
+                style={{
+                  ...sans,
+                  fontSize: '11px',
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                  color: mode === m ? '#1a1713' : '#b0a89e',
+                  borderBottom: mode === m ? '1px solid #1a1713' : '1px solid transparent',
+                  paddingBottom: '12px',
+                  marginBottom: '-1px',
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: mode === m ? '1px solid #1a1713' : '1px solid transparent',
+                  cursor: 'pointer',
+                }}
               >
-                {m === 'login' ? 'Sign in' : 'Create account'}
+                {label}
               </button>
             ))}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Username</label>
+              <label style={{ ...sans, fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#a09890', display: 'block', marginBottom: '10px' }}>
+                Username
+              </label>
               <input
                 type="text"
                 value={username}
@@ -70,39 +100,46 @@ export default function AuthScreen({ onAuth }) {
                 placeholder="e.g. wendy"
                 autoFocus
                 required
-                className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 focus:border-transparent"
+                style={{ ...sans, borderColor: '#d4ccc4' }}
+                className="w-full bg-transparent border-b py-2.5 text-sm focus:outline-none transition-colors placeholder:text-black/20"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Password</label>
+              <label style={{ ...sans, fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#a09890', display: 'block', marginBottom: '10px' }}>
+                Password
+              </label>
               <input
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder={mode === 'register' ? 'At least 6 characters' : ''}
+                placeholder={mode === 'register' ? 'At least 6 characters' : '········'}
                 required
-                className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 focus:border-transparent"
+                style={{ ...sans, borderColor: '#d4ccc4' }}
+                className="w-full bg-transparent border-b py-2.5 text-sm focus:outline-none transition-colors placeholder:text-black/20"
               />
             </div>
 
             {error && (
-              <p className="text-red-500 text-sm">{error}</p>
+              <p style={{ ...sans, fontSize: '12px', color: '#c0392b' }}>{error}</p>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-stone-800 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-stone-700 transition-colors disabled:opacity-50"
-            >
-              {loading ? '…' : mode === 'login' ? 'Sign in' : 'Create account'}
-            </button>
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                style={{ ...sans, fontSize: '11px', letterSpacing: '0.2em', textTransform: 'uppercase', backgroundColor: '#1a1713', color: '#FAF8F5' }}
+                className="w-full py-4 hover:opacity-80 transition-opacity disabled:opacity-40"
+              >
+                {loading ? '…' : mode === 'login' ? 'Sign In' : 'Create Account'}
+              </button>
+            </div>
           </form>
-        </div>
 
-        <p className="text-center text-stone-400 text-xs mt-4">
-          Your data is saved locally in this browser.
-        </p>
+          <p style={{ ...sans, fontSize: '11px', color: '#c9b99a', textAlign: 'center', marginTop: '32px', letterSpacing: '0.05em' }}>
+            Data saved locally in this browser
+          </p>
+        </div>
       </div>
     </div>
   );
