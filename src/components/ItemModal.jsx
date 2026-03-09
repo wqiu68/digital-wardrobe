@@ -316,6 +316,18 @@ export default function ItemModal({ item, onSave, onClose }) {
               </div>
             </div>
 
+            {/* Product link */}
+            <div>
+              <label className="block text-xs font-medium text-stone-500 uppercase tracking-wide mb-1">Product Link</label>
+              <input
+                type="url"
+                value={form.sourceUrl || ''}
+                onChange={e => set('sourceUrl', e.target.value)}
+                placeholder="https://www.zara.com/…"
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-300"
+              />
+            </div>
+
             {/* Notes */}
             <div>
               <label className="block text-xs font-medium text-stone-500 uppercase tracking-wide mb-1">Notes</label>
