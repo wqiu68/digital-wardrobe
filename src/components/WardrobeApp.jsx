@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import posthog from 'posthog-js';
 import { logout } from '../utils/auth';
-import { getItems, addItem, updateItem, deleteItem } from '../utils/wardrobe';
+import { getItems, addItem, updateItem, deleteItem, reorderItems } from '../utils/wardrobe';
 import ItemModal, { CATEGORIES } from './ItemModal';
 
 const ALL = { id: 'ALL', label: 'All', emoji: '✦' };
@@ -20,17 +23,40 @@ function placeholder(category) {
   return map[category] || map.OTHER;
 }
 
-function ItemCard({ item, onEdit, onDelete }) {
+function SortableItemCard({ item, onEdit, onDelete }) {
   const cat = CATEGORIES.find(c => c.id === item.category);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : 'auto',
+  };
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
+    <div
+      ref={setNodeRef}
+      style={style}
       className="group relative bg-white rounded-2xl overflow-hidden border border-stone-100 hover:border-stone-200 hover:shadow-md transition-all"
     >
+      {/* Drag handle — top-left on hover */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-2 left-2 z-10 w-6 h-6 bg-white/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing shadow"
+        title="Drag to reorder"
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <circle cx="4" cy="3" r="1" fill="#78716c"/>
+          <circle cx="8" cy="3" r="1" fill="#78716c"/>
+          <circle cx="4" cy="6" r="1" fill="#78716c"/>
+          <circle cx="8" cy="6" r="1" fill="#78716c"/>
+          <circle cx="4" cy="9" r="1" fill="#78716c"/>
+          <circle cx="8" cy="9" r="1" fill="#78716c"/>
+        </svg>
+      </div>
+
       {/* Image area */}
       <div className={`aspect-[3/4] w-full bg-gradient-to-br ${placeholder(item.category)} flex items-center justify-center overflow-hidden`}>
         {item.image
@@ -77,7 +103,7 @@ function ItemCard({ item, onEdit, onDelete }) {
           title="Delete"
         >🗑</button>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -85,9 +111,14 @@ export default function WardrobeApp({ user, onLogout }) {
   const [items, setItems] = useState(() => getItems(user));
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [activeOccasion, setActiveOccasion] = useState('ALL');
-  const [modal, setModal] = useState(null); // null | { mode: 'add' } | { mode: 'edit', item }
+  const [modal, setModal] = useState(null);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
 
   useEffect(() => {
     setItems(getItems(user));
@@ -121,6 +152,18 @@ export default function WardrobeApp({ user, onLogout }) {
     if (!confirm('Remove this piece from your wardrobe?')) return;
     deleteItem(user, id);
     setItems(getItems(user));
+  }
+
+  function handleDragEnd(event) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    // Work out new order within the full items list
+    const oldIndex = items.findIndex(i => i.id === active.id);
+    const newIndex = items.findIndex(i => i.id === over.id);
+    const reordered = arrayMove(items, oldIndex, newIndex);
+    setItems(reordered);
+    reorderItems(user, reordered.map(i => i.id));
   }
 
   function handleLogout() {
@@ -225,10 +268,10 @@ export default function WardrobeApp({ user, onLogout }) {
           <span className="text-xs text-stone-400 uppercase tracking-wide shrink-0">Occasion</span>
           <div className="flex gap-1.5">
             {[
-              { id: 'ALL',      label: 'All',      emoji: '✦' },
-              { id: 'everyday', label: 'Everyday', emoji: '☀️' },
+              { id: 'ALL',      label: 'All',         emoji: '✦' },
+              { id: 'everyday', label: 'Everyday',    emoji: '☀️' },
               { id: 'work',     label: 'Work/Formal', emoji: '💼' },
-              { id: 'athletic', label: 'Athletic', emoji: '🏃' },
+              { id: 'athletic', label: 'Athletic',    emoji: '🏃' },
             ].map(o => (
               <button
                 key={o.id}
@@ -260,18 +303,22 @@ export default function WardrobeApp({ user, onLogout }) {
             )}
           </div>
         ) : (
-          <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            <AnimatePresence>
-              {filtered.map(item => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  onEdit={item => setModal({ mode: 'edit', item })}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </AnimatePresence>
-          </motion.div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={filtered.map(i => i.id)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                <AnimatePresence>
+                  {filtered.map(item => (
+                    <SortableItemCard
+                      key={item.id}
+                      item={item}
+                      onEdit={item => setModal({ mode: 'edit', item })}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </main>
 

@@ -62,3 +62,12 @@ export function deleteItem(username, id) {
   const items = load(username).filter(i => i.id !== id);
   persist(username, items);
 }
+
+export function reorderItems(username, orderedIds) {
+  const items = load(username);
+  const map = Object.fromEntries(items.map(i => [i.id, i]));
+  const reordered = orderedIds.map(id => map[id]).filter(Boolean);
+  // append any items not in orderedIds (safety net)
+  items.forEach(i => { if (!orderedIds.includes(i.id)) reordered.push(i); });
+  persist(username, reordered);
+}
