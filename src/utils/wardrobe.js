@@ -36,9 +36,11 @@ function fromDb(row) {
 }
 
 export async function getItems() {
+  const { data: { user } } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('wardrobe_items')
     .select('*')
+    .eq('user_id', user.id)
     .order('sort_order', { ascending: true, nullsFirst: false })
     .order('added_at', { ascending: false });
   if (error) throw error;
