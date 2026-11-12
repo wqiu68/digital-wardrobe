@@ -5,6 +5,7 @@ import { getFriendBooks } from '../utils/books';
 import { getLoansForFriend, requestBorrow, withdrawLoan } from '../utils/loans';
 import { Stars } from './BookModal';
 import BorrowButton from './BorrowButton';
+import { Bookcase, ShelvedBook, BOOKCASE_GRID, ON_WOOD } from './BookcaseDecor';
 
 const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
 const sans  = { fontFamily: "'Inter', sans-serif" };
@@ -75,42 +76,35 @@ export default function FriendBookshelfView({ friend }) {
           {books.length === 0 ? `${name} hasn't added any books yet.` : 'No results.'}
         </p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-4 gap-y-10">
-          {filtered.map(book => {
-            const bookLoans = loans.filter(l => l.bookId === book.id);
-            const checkedOut = bookLoans.some(l => l.status === 'lent' && l.borrowerId !== myId);
-            return (
-              <div key={book.id} className="flex flex-col">
-                <div className="aspect-[2/3] w-full overflow-hidden mb-3" style={{ backgroundColor: '#ece5dc', boxShadow: '0 1px 3px rgba(26,23,19,0.12)', opacity: checkedOut ? 0.55 : 1 }}>
-                  {book.cover
-                    ? <img src={book.cover} alt={book.title} className="w-full h-full object-cover" loading="lazy" />
-                    : (
-                      <div className="w-full h-full flex flex-col justify-between p-3" style={{ borderLeft: '4px solid #d8cdbf' }}>
-                        <p style={{ ...serif, fontSize: '15px', fontStyle: 'italic', color: '#5a5048', lineHeight: 1.15 }} className="line-clamp-5">{book.title}</p>
-                        {book.author && <p style={{ ...sans, fontSize: '9px', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#a09890' }} className="line-clamp-2">{book.author}</p>}
-                      </div>
-                    )}
+        <Bookcase title={`${friend.displayName || 'Their'}'s Library`} count={books.length}>
+          <div className={BOOKCASE_GRID}>
+            {filtered.map(book => {
+              const bookLoans = loans.filter(l => l.bookId === book.id);
+              const checkedOut = bookLoans.some(l => l.status === 'lent' && l.borrowerId !== myId);
+              return (
+                <div key={book.id} className="group flex flex-col">
+                  <ShelvedBook book={book} dim={checkedOut}>
+                    <p style={{ ...serif, fontSize: '15px', color: ON_WOOD.title, lineHeight: 1.15 }} className="line-clamp-2">{book.title}</p>
+                    {book.author && <p style={{ ...sans, fontSize: '10px', color: ON_WOOD.sub, marginTop: '3px', letterSpacing: '0.04em' }} className="truncate">{book.author}</p>}
+                    {book.status === 'reading' && <p style={{ ...sans, fontSize: '9px', color: ON_WOOD.starOn, marginTop: '4px', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Currently reading</p>}
+                    {book.status === 'read' && book.rating && <div className="mt-1"><Stars value={book.rating} size={11} on={ON_WOOD.starOn} off={ON_WOOD.starOff} /></div>}
+                    <BorrowButton
+                      onDark
+                      loans={bookLoans}
+                      myId={myId}
+                      busy={busy === book.id}
+                      onRequest={() => act(book.id, async () => {
+                        await requestBorrow({ bookId: book.id }, friend.userId);
+                        posthog.capture('borrow_requested', { kind: 'book' });
+                      })}
+                      onCancel={loan => act(book.id, () => withdrawLoan(loan.id))}
+                    />
+                  </ShelvedBook>
                 </div>
-                <p style={{ ...sans, fontSize: '13px', fontWeight: 500, color: '#1a1713', lineHeight: 1.3 }} className="line-clamp-2">{book.title}</p>
-                {book.author && <p style={{ ...sans, fontSize: '11px', color: '#a09890', marginTop: '2px' }} className="truncate">{book.author}</p>}
-                {book.status === 'reading' && <p style={{ ...sans, fontSize: '10px', color: '#c9b99a', marginTop: '3px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Currently reading</p>}
-                {book.status === 'read' && book.rating && <div className="mt-1"><Stars value={book.rating} size={11} /></div>}
-                <div className="mt-auto">
-                  <BorrowButton
-                    loans={bookLoans}
-                    myId={myId}
-                    busy={busy === book.id}
-                    onRequest={() => act(book.id, async () => {
-                      await requestBorrow({ bookId: book.id }, friend.userId);
-                      posthog.capture('borrow_requested', { kind: 'book' });
-                    })}
-                    onCancel={loan => act(book.id, () => withdrawLoan(loan.id))}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </Bookcase>
       )}
     </div>
   );

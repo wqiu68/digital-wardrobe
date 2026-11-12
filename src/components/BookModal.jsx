@@ -27,7 +27,7 @@ function compressImage(dataUrl, maxDim = 400, quality = 0.6) {
   });
 }
 
-export function Stars({ value, onChange, size = 14 }) {
+export function Stars({ value, onChange, size = 14, on = '#1a1713', off = '#ddd5cc' }) {
   return (
     <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map(n => {
@@ -38,7 +38,7 @@ export function Stars({ value, onChange, size = 14 }) {
             key={n}
             type={onChange ? 'button' : undefined}
             onClick={onChange ? () => onChange(value === n ? null : n) : undefined}
-            style={{ fontSize: `${size}px`, color: filled ? '#1a1713' : '#ddd5cc', lineHeight: 1 }}
+            style={{ fontSize: `${size}px`, color: filled ? on : off, lineHeight: 1 }}
             className={onChange ? 'hover:opacity-70 transition-opacity' : ''}
             aria-label={onChange ? `${n} star${n > 1 ? 's' : ''}` : undefined}
           >

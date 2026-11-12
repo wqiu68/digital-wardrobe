@@ -4,18 +4,23 @@ const btnBase = { ...sans, fontSize: '10px', letterSpacing: '0.1em', textTransfo
 
 // Shows the right borrow state for one of a friend's books or closet items.
 //   loans: open loans visible to me for this thing; myId: current user id
-export default function BorrowButton({ loans, myId, busy, onRequest, onCancel }) {
+export default function BorrowButton({ loans, myId, busy, onRequest, onCancel, onDark = false }) {
+  // onDark: sitting on the walnut bookcase, so invert the palette
+  const c = onDark
+    ? { ok: '#a9c9a4', okBorder: 'rgba(169,201,164,0.4)', muted: '#c4ab8c', mutedBorder: 'rgba(196,171,140,0.4)', faint: '#8c735a', primaryBg: '#f1e6d2', primaryFg: '#2f2119' }
+    : { ok: '#7a9e7e', okBorder: '#cfe0d0', muted: '#a09890', mutedBorder: '#e0d9d2', faint: '#c9b99a', primaryBg: '#1a1713', primaryFg: '#FAF8F5' };
+
   const myLoan = loans.find(l => l.borrowerId === myId);
   const checkedOut = loans.some(l => l.status === 'lent' && l.borrowerId !== myId);
 
   if (myLoan?.status === 'lent') {
-    return <div style={{ ...btnBase, color: '#7a9e7e', border: '1px solid #cfe0d0', textAlign: 'center' }}>You're borrowing this</div>;
+    return <div style={{ ...btnBase, color: c.ok, border: `1px solid ${c.okBorder}`, textAlign: 'center' }}>You're borrowing this</div>;
   }
   if (myLoan?.status === 'requested') {
     return (
       <button
         onClick={() => onCancel(myLoan)} disabled={busy}
-        style={{ ...btnBase, color: '#a09890', border: '1px solid #e0d9d2' }}
+        style={{ ...btnBase, color: c.muted, border: `1px solid ${c.mutedBorder}` }}
         className="group/req hover:border-black/30 transition-colors disabled:opacity-40"
       >
         <span className="group-hover/req:hidden">Requested ✓</span>
@@ -24,12 +29,12 @@ export default function BorrowButton({ loans, myId, busy, onRequest, onCancel })
     );
   }
   if (checkedOut) {
-    return <div style={{ ...btnBase, color: '#c9b99a', border: '1px dashed #e0d9d2', textAlign: 'center' }}>Checked out</div>;
+    return <div style={{ ...btnBase, color: c.faint, border: `1px dashed ${c.mutedBorder}`, textAlign: 'center' }}>Checked out</div>;
   }
   return (
     <button
       onClick={onRequest} disabled={busy}
-      style={{ ...btnBase, backgroundColor: '#1a1713', color: '#FAF8F5' }}
+      style={{ ...btnBase, backgroundColor: c.primaryBg, color: c.primaryFg }}
       className="hover:opacity-80 transition-opacity disabled:opacity-40"
     >
       Request to borrow

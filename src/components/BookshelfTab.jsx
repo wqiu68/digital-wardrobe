@@ -1,82 +1,64 @@
 import { useState, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import posthog from 'posthog-js';
 import { getBooks, addBook, updateBook, deleteBook, reorderBooks } from '../utils/books';
 import BookModal, { SHELVES, Stars } from './BookModal';
-import { LentTag } from './BorrowButton';
+import { Bookcase, ShelvedBook, BOOKCASE_GRID, ON_WOOD } from './BookcaseDecor';
 
 const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
 const sans  = { fontFamily: "'Inter', sans-serif" };
 
-const GRID = "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-x-4 gap-y-8";
+const ctrlBtn = { backgroundColor: 'rgba(250,248,245,0.92)', color: '#6b5a4a', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' };
 
-// ─── Book card ────────────────────────────────────────────────────────────────
-
-function BookCover({ book }) {
-  if (book.cover) {
-    return <img src={book.cover} alt={book.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />;
-  }
-  // Typographic placeholder when there's no cover
-  return (
-    <div className="w-full h-full flex flex-col justify-between p-3" style={{ backgroundColor: '#ece5dc', borderLeft: '4px solid #d8cdbf' }}>
-      <p style={{ ...serif, fontSize: '15px', fontStyle: 'italic', color: '#5a5048', lineHeight: 1.15 }} className="line-clamp-5">{book.title}</p>
-      {book.author && <p style={{ ...sans, fontSize: '9px', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#a09890' }} className="line-clamp-2">{book.author}</p>}
-    </div>
-  );
-}
+// ─── Book on the shelf ────────────────────────────────────────────────────────
 
 function SortableBookCard({ book, lentTo, onEdit, onDelete }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: book.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.3 : 1 };
 
+  const overlay = (
+    <>
+      <div
+        {...attributes} {...listeners}
+        onClick={e => e.stopPropagation()}
+        className="absolute top-1.5 left-1.5 z-30 w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
+        style={ctrlBtn}
+      >
+        <svg width="10" height="10" viewBox="0 0 11 11" fill="currentColor">
+          <circle cx="3.5" cy="2.5" r="1.1"/><circle cx="7.5" cy="2.5" r="1.1"/>
+          <circle cx="3.5" cy="5.5" r="1.1"/><circle cx="7.5" cy="5.5" r="1.1"/>
+          <circle cx="3.5" cy="8.5" r="1.1"/><circle cx="7.5" cy="8.5" r="1.1"/>
+        </svg>
+      </div>
+      <button
+        onClick={e => { e.stopPropagation(); onDelete(book.id); }}
+        className="absolute bottom-1.5 right-1.5 z-30 w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+        style={ctrlBtn}
+        aria-label="Remove book"
+      >
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M2 3h8M5 3V2h2v1M3 3l.5 7h5L9 3"/></svg>
+      </button>
+    </>
+  );
+
   return (
     <div ref={setNodeRef} style={style} className="group cursor-pointer" onClick={() => onEdit(book)}>
-      <div className="aspect-[2/3] w-full overflow-hidden relative mb-3" style={{ backgroundColor: '#f5f0eb', boxShadow: '0 1px 3px rgba(26,23,19,0.12)' }}>
-        <BookCover book={book} />
-        <LentTag name={lentTo} />
-        <div
-          {...attributes} {...listeners}
-          onClick={e => e.stopPropagation()}
-          className="absolute top-2 left-2 w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
-          style={{ backgroundColor: '#FAF8F5', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}
-        >
-          <svg width="11" height="11" viewBox="0 0 11 11" fill="#a09890">
-            <circle cx="3.5" cy="2.5" r="1.1"/><circle cx="7.5" cy="2.5" r="1.1"/>
-            <circle cx="3.5" cy="5.5" r="1.1"/><circle cx="7.5" cy="5.5" r="1.1"/>
-            <circle cx="3.5" cy="8.5" r="1.1"/><circle cx="7.5" cy="8.5" r="1.1"/>
-          </svg>
-        </div>
-        <button
-          onClick={e => { e.stopPropagation(); onDelete(book.id); }}
-          className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{ backgroundColor: '#FAF8F5', color: '#a09890', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}
-          aria-label="Remove book"
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M2 3h8M5 3V2h2v1M3 3l.5 7h5L9 3"/></svg>
-        </button>
-      </div>
-      <p style={{ ...sans, fontSize: '13px', fontWeight: 500, color: '#1a1713', lineHeight: 1.3 }} className="line-clamp-2">{book.title}</p>
-      {book.author && <p style={{ ...sans, fontSize: '11px', color: '#a09890', marginTop: '2px' }} className="truncate">{book.author}</p>}
-      {book.status === 'read' && book.rating && <div className="mt-1"><Stars value={book.rating} size={11} /></div>}
+      <ShelvedBook book={book} lentTo={lentTo} overlay={overlay}>
+        <p style={{ ...serif, fontSize: '15px', color: ON_WOOD.title, lineHeight: 1.15 }} className="line-clamp-2">{book.title}</p>
+        {book.author && <p style={{ ...sans, fontSize: '10px', color: ON_WOOD.sub, marginTop: '3px', letterSpacing: '0.04em' }} className="truncate">{book.author}</p>}
+        {book.status === 'read' && book.rating && <div className="mt-1"><Stars value={book.rating} size={11} on={ON_WOOD.starOn} off={ON_WOOD.starOff} /></div>}
+      </ShelvedBook>
     </div>
   );
 }
 
-function ShelfSection({ shelf, books, lentTo, onEdit, onDelete }) {
-  if (!books.length) return null;
+function BookGrid({ books, lentTo, onEdit, onDelete }) {
   return (
-    <div className="mb-14">
-      <div className="flex items-center gap-4 mb-6">
-        <h2 style={{ ...serif, fontSize: '18px', fontWeight: 400, color: '#1a1713', fontStyle: 'italic' }}>{shelf.label}</h2>
-        <span style={{ ...sans, fontSize: '11px', color: '#b0a89e' }}>{books.length} {books.length === 1 ? 'book' : 'books'}</span>
-        <div className="flex-1 h-px" style={{ backgroundColor: '#e8e3de' }} />
-      </div>
-      <div className={GRID}>
-        {books.map(b => <SortableBookCard key={b.id} book={b} lentTo={lentTo[b.id]} onEdit={onEdit} onDelete={onDelete} />)}
-      </div>
+    <div className={BOOKCASE_GRID}>
+      {books.map(b => <SortableBookCard key={b.id} book={b} lentTo={lentTo[b.id]} onEdit={onEdit} onDelete={onDelete} />)}
     </div>
   );
 }
@@ -226,26 +208,19 @@ export default function BookshelfTab({ lentTo = {} }) {
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={filtered.map(b => b.id)} strategy={rectSortingStrategy}>
             {activeShelf === 'ALL' ? (
-              SHELVES.map(shelf => (
-                <ShelfSection
-                  key={shelf.id}
-                  shelf={shelf}
-                  books={filtered.filter(b => b.status === shelf.id)}
-                  lentTo={lentTo}
-                  onEdit={openEdit}
-                  onDelete={handleDelete}
-                />
-              ))
+              SHELVES.map(shelf => {
+                const shelfBooks = filtered.filter(b => b.status === shelf.id);
+                if (!shelfBooks.length) return null;
+                return (
+                  <Bookcase key={shelf.id} title={shelf.id === 'reading' ? 'Currently Reading' : 'Read'} count={shelfBooks.length}>
+                    <BookGrid books={shelfBooks} lentTo={lentTo} onEdit={openEdit} onDelete={handleDelete} />
+                  </Bookcase>
+                );
+              })
             ) : (
-              <div className={GRID}>
-                <AnimatePresence>
-                  {filtered.map(b => (
-                    <motion.div key={b.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                      <SortableBookCard book={b} lentTo={lentTo[b.id]} onEdit={openEdit} onDelete={handleDelete} />
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
+              <Bookcase title={activeShelf === 'reading' ? 'Currently Reading' : 'Read'} count={filtered.length}>
+                <BookGrid books={filtered} lentTo={lentTo} onEdit={openEdit} onDelete={handleDelete} />
+              </Bookcase>
             )}
           </SortableContext>
         </DndContext>
