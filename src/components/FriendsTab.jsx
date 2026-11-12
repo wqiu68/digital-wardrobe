@@ -9,19 +9,24 @@ import {
   removeFriend,
   getFriendItems,
 } from '../utils/friends';
+import FriendBookshelfView from './FriendBookshelfView';
+import BorrowButton from './BorrowButton';
+import posthog from 'posthog-js';
+import { supabase } from '../utils/supabase';
+import { getLoansForFriend, requestBorrow, withdrawLoan } from '../utils/loans';
 
 const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
 const sans  = { fontFamily: "'Inter', sans-serif" };
 
 // ─── Read-only item card (no drag / edit / delete) ────────────────────────────
 
-function ReadOnlyItemCard({ item }) {
+function ReadOnlyItemCard({ item, children }) {
   const cat = CATEGORIES.find(c => c.id === item.category);
   let hostname = '';
   try { hostname = new URL(item.sourceUrl).hostname.replace(/^www\./, ''); } catch {}
 
   return (
-    <div className="group">
+    <div className="group flex flex-col">
       <div className="aspect-[3/4] w-full overflow-hidden relative mb-3" style={{ backgroundColor: '#f5f0eb' }}>
         {item.image
           ? <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
@@ -52,25 +57,49 @@ function ReadOnlyItemCard({ item }) {
           </a>
         )}
       </div>
+      {children && <div className="mt-auto">{children}</div>}
     </div>
   );
 }
 
 // ─── Friend's closet ─────────────────────────────────────────────────────────
 
-function FriendClosetView({ friend, onBack }) {
+function FriendClosetView({ friend }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [activeOccasion, setActiveOccasion] = useState('ALL');
   const [error, setError] = useState('');
+  const [loans, setLoans] = useState([]);
+  const [myId, setMyId] = useState(null);
+  const [busy, setBusy] = useState(null);
+
+  async function loadLoans() {
+    setLoans(await getLoansForFriend(friend.userId));
+  }
 
   useEffect(() => {
-    getFriendItems(friend.userId)
-      .then(setItems)
+    Promise.all([
+      getFriendItems(friend.userId).then(setItems),
+      loadLoans(),
+      supabase.auth.getUser().then(({ data }) => setMyId(data.user?.id)),
+    ])
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [friend.userId]);
+
+  async function act(itemId, fn) {
+    setBusy(itemId);
+    setError('');
+    try {
+      await fn();
+      await loadLoans();
+    } catch (e) {
+      setError(e.message || 'Something went wrong.');
+    } finally {
+      setBusy(null);
+    }
+  }
 
   const counts = {};
   items.forEach(i => { counts[i.category] = (counts[i.category] || 0) + 1; });
@@ -86,26 +115,6 @@ function FriendClosetView({ friend, onBack }) {
 
   return (
     <div>
-      {/* Back + title */}
-      <div className="flex items-center gap-4 mb-8">
-        <button
-          onClick={onBack}
-          style={{ ...sans, fontSize: '11px', color: '#b0a89e', letterSpacing: '0.05em' }}
-          className="hover:opacity-60 transition-opacity flex items-center gap-1.5"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.2">
-            <path d="M9 2L4 7l5 5"/>
-          </svg>
-          Friends
-        </button>
-        <h2 style={{ ...serif, fontSize: '22px', fontWeight: 400, color: '#1a1713', fontStyle: 'italic' }}>
-          {friend.displayName || friend.email}'s Closet
-        </h2>
-        {!loading && (
-          <span style={{ ...sans, fontSize: '11px', color: '#b0a89e' }}>{items.length} {items.length === 1 ? 'piece' : 'pieces'}</span>
-        )}
-      </div>
-
       {/* Category tabs */}
       <div className="flex gap-0 overflow-x-auto scrollbar-hide mb-8" style={{ borderBottom: '1px solid #e8e3de' }}>
         {tabs.map(cat => {
@@ -176,10 +185,65 @@ function FriendClosetView({ friend, onBack }) {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-4 gap-y-8">
           {filtered.map(item => (
-            <ReadOnlyItemCard key={item.id} item={item} />
+            <ReadOnlyItemCard key={item.id} item={item}>
+              <BorrowButton
+                loans={loans.filter(l => l.itemId === item.id)}
+                myId={myId}
+                busy={busy === item.id}
+                onRequest={() => act(item.id, async () => {
+                  await requestBorrow({ itemId: item.id }, friend.userId);
+                  posthog.capture('borrow_requested', { kind: 'item' });
+                })}
+                onCancel={loan => act(item.id, () => withdrawLoan(loan.id))}
+              />
+            </ReadOnlyItemCard>
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Friend page: back + name + Closet / Bookshelf toggle ────────────────────
+
+function FriendView({ friend, initialSection, onBack }) {
+  const [section, setSection] = useState(initialSection || 'closet');
+  const name = friend.displayName || friend.email;
+
+  return (
+    <div>
+      <div className="flex items-center gap-4 mb-6 flex-wrap">
+        <button
+          onClick={onBack}
+          style={{ ...sans, fontSize: '11px', color: '#b0a89e', letterSpacing: '0.05em' }}
+          className="hover:opacity-60 transition-opacity flex items-center gap-1.5"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.2">
+            <path d="M9 2L4 7l5 5"/>
+          </svg>
+          Friends
+        </button>
+        <h2 style={{ ...serif, fontSize: '22px', fontWeight: 400, color: '#1a1713', fontStyle: 'italic' }}>
+          {name}'s {section === 'closet' ? 'Closet' : 'Bookshelf'}
+        </h2>
+        <div className="flex ml-auto" style={{ border: '1px solid #e0d9d2' }}>
+          {[{ id: 'closet', label: 'Closet' }, { id: 'books', label: 'Bookshelf' }].map(s => (
+            <button
+              key={s.id}
+              onClick={() => setSection(s.id)}
+              style={{
+                ...sans, fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '6px 14px',
+                backgroundColor: section === s.id ? '#1a1713' : 'transparent',
+                color: section === s.id ? '#FAF8F5' : '#a09890',
+              }}
+              className="transition-all"
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {section === 'closet' ? <FriendClosetView friend={friend} /> : <FriendBookshelfView friend={friend} />}
     </div>
   );
 }
@@ -250,11 +314,12 @@ export default function FriendsTab({ onPendingCountChange }) {
     }
   }
 
-  // Viewing a specific friend's closet
+  // Viewing a specific friend's closet / bookshelf
   if (selectedFriend) {
     return (
-      <FriendClosetView
-        friend={selectedFriend}
+      <FriendView
+        friend={selectedFriend.friend}
+        initialSection={selectedFriend.section}
         onBack={() => setSelectedFriend(null)}
       />
     );
@@ -355,13 +420,16 @@ export default function FriendsTab({ onPendingCountChange }) {
                       {f.displayName && <p style={{ ...sans, fontSize: '11px', color: '#b0a89e' }}>{f.email}</p>}
                     </div>
                     <div className="flex items-center gap-4">
-                      <button
-                        onClick={() => setSelectedFriend(f)}
-                        style={{ ...sans, fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#1a1713', borderBottom: '1px solid #1a1713' }}
-                        className="hover:opacity-60 transition-opacity"
-                      >
-                        View Closet
-                      </button>
+                      {[{ id: 'closet', label: 'Closet' }, { id: 'books', label: 'Books' }].map(s => (
+                        <button
+                          key={s.id}
+                          onClick={() => setSelectedFriend({ friend: f, section: s.id })}
+                          style={{ ...sans, fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#1a1713', borderBottom: '1px solid #1a1713' }}
+                          className="hover:opacity-60 transition-opacity"
+                        >
+                          {s.label}
+                        </button>
+                      ))}
                       <button
                         onClick={() => handleRemove(f.friendshipId, f.displayName || f.email)}
                         style={{ color: '#d4ccc4' }}

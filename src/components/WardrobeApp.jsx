@@ -6,8 +6,12 @@ import { CSS } from '@dnd-kit/utilities';
 import posthog from 'posthog-js';
 import { getItems, addItem, updateItem, deleteItem, reorderItems, migrateItems } from '../utils/wardrobe';
 import { ensureProfile } from '../utils/friends';
+import { getMyLending, lentToMap } from '../utils/loans';
+import LendingView from './LendingView';
+import { LentTag } from './BorrowButton';
 import ItemModal, { CATEGORIES } from './ItemModal';
 import FriendsTab from './FriendsTab';
+import BookshelfTab from './BookshelfTab';
 
 const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
 const sans  = { fontFamily: "'Inter', sans-serif" };
@@ -16,7 +20,7 @@ const ALL = { id: 'ALL', label: 'All' };
 
 // ─── Sortable item card (closet) ──────────────────────────────────────────────
 
-function SortableItemCard({ item, onEdit, onDelete }) {
+function SortableItemCard({ item, lentTo, onEdit, onDelete }) {
   const cat = CATEGORIES.find(c => c.id === item.category);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
 
@@ -36,6 +40,7 @@ function SortableItemCard({ item, onEdit, onDelete }) {
           ? <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
           : <div className="w-full h-full flex items-center justify-center"><span className="text-4xl opacity-15">{cat?.emoji}</span></div>
         }
+        <LentTag name={lentTo} />
         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" style={{ background: 'rgba(26,23,19,0.04)' }} />
         <div
           {...attributes} {...listeners}
@@ -89,7 +94,7 @@ function SortableItemCard({ item, onEdit, onDelete }) {
   );
 }
 
-function CategorySection({ category, items, onEdit, onDelete }) {
+function CategorySection({ category, items, lentTo, onEdit, onDelete }) {
   const cat = CATEGORIES.find(c => c.id === category);
   if (!items.length) return null;
   return (
@@ -101,7 +106,7 @@ function CategorySection({ category, items, onEdit, onDelete }) {
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-4 gap-y-8">
         {items.map(item => (
-          <SortableItemCard key={item.id} item={item} onEdit={onEdit} onDelete={onDelete} />
+          <SortableItemCard key={item.id} item={item} lentTo={lentTo[item.id]} onEdit={onEdit} onDelete={onDelete} />
         ))}
       </div>
     </div>
@@ -157,8 +162,9 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [loadingItems, setLoadingItems] = useState(true);
-  const [view, setView] = useState('closet'); // 'closet' | 'friends'
+  const [view, setView] = useState('closet'); // 'closet' | 'bookshelf' | 'lending' | 'friends'
   const [pendingCount, setPendingCount] = useState(0);
+  const [lending, setLending] = useState([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -198,7 +204,16 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
   useEffect(() => {
     ensureProfile(user, displayName).catch(console.error);
     loadItems();
+    loadLending();
   }, []);
+
+  async function loadLending() {
+    try {
+      setLending(await getMyLending());
+    } catch (e) {
+      console.error('Lending load error:', e);
+    }
+  }
 
   async function handleAdd(formData) {
     try {
@@ -261,8 +276,13 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
     items: filtered.filter(i => i.category === cat.id),
   })).filter(g => g.items.length > 0);
 
+  const lentTo = lentToMap(lending);
+  const loanRequestCount = lending.filter(l => l.status === 'requested').length;
+
   const navTabs = [
-    { id: 'closet',  label: 'My Closet' },
+    { id: 'closet',    label: 'My Closet' },
+    { id: 'bookshelf', label: 'Bookshelf' },
+    { id: 'lending',   label: 'Lending'   },
     { id: 'friends', label: 'Friends'   },
   ];
 
@@ -275,7 +295,7 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
         {/* Top row */}
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between gap-6">
           <h1 style={{ ...serif, fontSize: '20px', fontWeight: 400, color: '#1a1713', fontStyle: 'italic', letterSpacing: '-0.01em' }}>
-            wardrobe
+            homey
           </h1>
 
           {view === 'closet' && (
@@ -345,14 +365,17 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
                 }}
               >
                 {t.label}
-                {t.id === 'friends' && pendingCount > 0 && (
-                  <span
-                    className="absolute top-2 -right-0.5 w-4 h-4 flex items-center justify-center rounded-full text-white"
-                    style={{ ...sans, fontSize: '9px', backgroundColor: '#c9b99a' }}
-                  >
-                    {pendingCount}
-                  </span>
-                )}
+                {(() => {
+                  const badge = t.id === 'friends' ? pendingCount : t.id === 'lending' ? loanRequestCount : 0;
+                  return badge > 0 && (
+                    <span
+                      className="absolute top-2 -right-0.5 w-4 h-4 flex items-center justify-center rounded-full text-white"
+                      style={{ ...sans, fontSize: '9px', backgroundColor: '#c9b99a' }}
+                    >
+                      {badge}
+                    </span>
+                  );
+                })()}
               </button>
             );
           })}
@@ -438,6 +461,12 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
       {/* Main content */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-10">
 
+        {/* ── Bookshelf ── */}
+        {view === 'bookshelf' && <BookshelfTab lentTo={lentTo} />}
+
+        {/* ── Lending ── */}
+        {view === 'lending' && <LendingView lending={lending} onLendingChange={loadLending} />}
+
         {/* ── Friends ── */}
         {view === 'friends' && (
           <FriendsTab onPendingCountChange={setPendingCount} />
@@ -473,6 +502,7 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
                       <CategorySection
                         category={category}
                         items={catItems}
+                        lentTo={lentTo}
                         onEdit={i => setModal({ mode: 'edit', item: i })}
                         onDelete={handleDelete}
                       />
@@ -490,6 +520,7 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
                       <motion.div key={item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                         <SortableItemCard
                           item={item}
+                          lentTo={lentTo[item.id]}
                           onEdit={i => setModal({ mode: 'edit', item: i })}
                           onDelete={handleDelete}
                         />

@@ -1,3 +1,5 @@
+import { supabase } from './supabase';
+
 const BRAND_MAP = {
   'zara.com': 'Zara', 'hm.com': 'H&M', 'mango.com': 'Mango',
   'uniqlo.com': 'Uniqlo', 'gap.com': 'Gap', 'oldnavy.com': 'Old Navy',
@@ -130,8 +132,30 @@ function isRealProductPage(html) {
   return /<title[\s>]/i.test(html);
 }
 
+// Our own Supabase Edge Function (supabase/functions/fetch-page). Fetches server-side,
+// so retailers' CORS rules don't apply.
+async function fetchViaEdge(targetUrl, mode = 'html') {
+  const { data, error } = await supabase.functions.invoke('fetch-page', { body: { url: targetUrl, mode } });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+// Download a product photo as a data URL so it's stored with the item
+// (retailer image links often expire). Returns '' if it can't be fetched.
+export async function fetchImageData(imageUrl) {
+  if (!imageUrl || imageUrl.startsWith('data:')) return imageUrl || '';
+  try {
+    const { dataUrl } = await fetchViaEdge(imageUrl, 'image');
+    return dataUrl || '';
+  } catch {
+    return '';
+  }
+}
+
 async function fetchHTML(targetUrl) {
   const proxies = [
+    async () => (await fetchViaEdge(targetUrl)).html || '',
     async () => {
       const res = await fetchWithTimeout(
         `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`

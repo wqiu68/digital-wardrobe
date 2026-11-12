@@ -47,14 +47,14 @@ export default function AuthScreen({ onAuth }) {
       {/* Left panel */}
       <div className="hidden lg:flex flex-col justify-between w-[52%] p-16" style={{ backgroundColor: '#f0ebe3' }}>
         <span style={{ ...sans, fontSize: '11px', letterSpacing: '0.3em', color: '#a09890', textTransform: 'uppercase' }}>
-          My Wardrobe
+          homey
         </span>
         <div>
           <h1 style={{ ...serif, fontSize: '80px', fontWeight: 300, color: '#1a1713', lineHeight: 1, marginBottom: '24px', fontStyle: 'italic' }}>
-            Your<br />Digital<br />Closet.
+            Your<br />Digital<br />Home.
           </h1>
           <p style={{ ...sans, fontSize: '13px', color: '#a09890', lineHeight: 1.8, maxWidth: '260px' }}>
-            Catalogue every piece you own. Filter by occasion, discover new combinations.
+            Your closet and your bookshelf in one place. Share them with friends, and borrow what they love.
           </p>
         </div>
         <span style={{ ...sans, fontSize: '11px', color: '#c9b99a', letterSpacing: '0.2em', textTransform: 'uppercase' }}>2026</span>
@@ -66,7 +66,7 @@ export default function AuthScreen({ onAuth }) {
 
           <div className="lg:hidden mb-10">
             <h1 style={{ ...serif, fontSize: '48px', fontWeight: 300, color: '#1a1713', fontStyle: 'italic', lineHeight: 1.1 }}>
-              My Wardrobe
+              homey
             </h1>
           </div>
 
@@ -176,7 +176,7 @@ export default function AuthScreen({ onAuth }) {
           )}
 
           <p style={{ ...sans, fontSize: '11px', color: '#c9b99a', textAlign: 'center', marginTop: '32px' }}>
-            Your wardrobe syncs across all your devices
+            Your home syncs across all your devices
           </p>
         </div>
       </div>

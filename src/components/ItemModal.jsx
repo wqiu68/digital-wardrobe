@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { fetchProductInfo } from '../utils/urlParser';
+import { fetchProductInfo, fetchImageData } from '../utils/urlParser';
 
 const CATEGORIES = [
   { id: 'TOPS',        label: 'Tops',        emoji: '👕', bg: 'bg-sky-50',    border: 'border-sky-300',    text: 'text-sky-700' },
@@ -112,8 +112,15 @@ export default function ItemModal({ item, onSave, onClose }) {
         sourceUrl: url,
       }));
       if (info.image) {
+        // Show the remote photo right away, then swap in a saved copy if we can download it
         setImagePreview(info.image);
         setForm(f => ({ ...f, image: info.image }));
+        const data = await fetchImageData(info.image);
+        if (data) {
+          const compressed = await compressImage(data);
+          setImagePreview(compressed);
+          setForm(f => ({ ...f, image: compressed }));
+        }
       }
     } catch (err) {
       const msg = err.message?.toLowerCase() || '';
