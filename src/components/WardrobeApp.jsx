@@ -12,6 +12,7 @@ import { LentTag } from './BorrowButton';
 import ItemModal, { CATEGORIES } from './ItemModal';
 import FriendsTab from './FriendsTab';
 import BookshelfTab from './BookshelfTab';
+import RankingsTab from './RankingsTab';
 
 const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
 const sans  = { fontFamily: "'Inter', sans-serif" };
@@ -162,7 +163,7 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [loadingItems, setLoadingItems] = useState(true);
-  const [view, setView] = useState('closet'); // 'closet' | 'bookshelf' | 'lending' | 'friends'
+  const [view, setView] = useState('closet'); // 'closet' | 'bookshelf' | 'rankings' | 'lending' | 'friends'
   const [pendingCount, setPendingCount] = useState(0);
   const [lending, setLending] = useState([]);
 
@@ -282,6 +283,7 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
   const navTabs = [
     { id: 'closet',    label: 'My Closet' },
     { id: 'bookshelf', label: 'Bookshelf' },
+    { id: 'rankings',  label: 'Rankings'  },
     { id: 'lending',   label: 'Lending'   },
     { id: 'friends', label: 'Friends'   },
   ];
@@ -345,7 +347,7 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
         )}
 
         {/* Nav tabs row */}
-        <div className="max-w-7xl mx-auto px-6 flex gap-0" style={{ borderTop: '1px solid #f0ebe3' }}>
+        <div className="max-w-7xl mx-auto px-6 flex gap-0 overflow-x-auto scrollbar-hide" style={{ borderTop: '1px solid #f0ebe3' }}>
           {navTabs.map(t => {
             const isActive = view === t.id;
             return (
@@ -463,6 +465,9 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
 
         {/* ── Bookshelf ── */}
         {view === 'bookshelf' && <BookshelfTab lentTo={lentTo} />}
+
+        {/* ── Rankings ── */}
+        {view === 'rankings' && <RankingsTab />}
 
         {/* ── Lending ── */}
         {view === 'lending' && <LendingView lending={lending} onLendingChange={loadLending} />}

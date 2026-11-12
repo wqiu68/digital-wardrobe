@@ -63,12 +63,21 @@ export function Bookcase({ title, count, children }) {
 }
 
 // Cloth binding with gold-foil lettering
-function ClothBinding({ book }) {
+export function ClothBinding({ book, size = 14 }) {
   const color = CLOTH[hash(book.title) % CLOTH.length];
+  // Too small for legible lettering (list thumbnails): just cloth and foil rules
+  if (size < 11) {
+    return (
+      <div className="w-full h-full flex flex-col justify-between py-[18%] items-center" style={{ backgroundColor: color, backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 3px)' }}>
+        <div className="w-3/5 h-px" style={{ backgroundColor: 'rgba(226,189,107,0.7)' }} />
+        <div className="w-3/5 h-px" style={{ backgroundColor: 'rgba(226,189,107,0.7)' }} />
+      </div>
+    );
+  }
   return (
     <div className="w-full h-full flex flex-col items-center justify-between py-4 px-2 text-center" style={{ backgroundColor: color, backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 3px)' }}>
       <div className="w-3/4 h-px" style={{ backgroundColor: 'rgba(226,189,107,0.6)' }} />
-      <p style={{ ...serif, fontSize: '14px', fontStyle: 'italic', color: '#e8c97e', lineHeight: 1.15 }} className="line-clamp-5">{book.title}</p>
+      <p style={{ ...serif, fontSize: `${size}px`, fontStyle: 'italic', color: '#e8c97e', lineHeight: 1.15 }} className="line-clamp-5">{book.title}</p>
       <div className="flex flex-col items-center gap-2 w-full">
         {book.author && <p style={{ ...sans, fontSize: '8px', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(232,201,126,0.75)' }} className="line-clamp-2">{book.author}</p>}
         <div className="w-3/4 h-px" style={{ backgroundColor: 'rgba(226,189,107,0.6)' }} />

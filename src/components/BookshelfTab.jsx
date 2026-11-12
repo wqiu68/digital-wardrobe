@@ -6,6 +6,8 @@ import { CSS } from '@dnd-kit/utilities';
 import posthog from 'posthog-js';
 import { getBooks, addBook, updateBook, deleteBook, reorderBooks } from '../utils/books';
 import BookModal, { SHELVES, Stars } from './BookModal';
+import RankFlow from './RankFlow';
+import { isRanked } from '../utils/ranking';
 import { Bookcase, ShelvedBook, BOOKCASE_GRID, ON_WOOD } from './BookcaseDecor';
 
 const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
@@ -71,6 +73,7 @@ export default function BookshelfTab({ lentTo = {} }) {
   const [activeShelf, setActiveShelf] = useState('ALL');
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(null);
+  const [rankBook, setRankBook] = useState(null);
   const [error, setError] = useState('');
 
   const sensors = useSensors(
@@ -92,15 +95,21 @@ export default function BookshelfTab({ lentTo = {} }) {
 
   async function handleSave(form) {
     try {
+      let saved;
+      // Finishing a book leads straight into ranking it (unless it's already ranked)
+      let justFinished = false;
       if (modal.mode === 'add') {
-        await addBook(form);
+        saved = await addBook(form);
+        justFinished = form.status === 'read';
         posthog.capture('book_added', { status: form.status, from_search: !!form.olKey });
       } else {
-        await updateBook(modal.book.id, form);
+        saved = await updateBook(modal.book.id, form);
+        justFinished = form.status === 'read' && modal.book.status !== 'read' && !isRanked(saved);
       }
       await load();
       setModal(null);
       setError('');
+      if (justFinished) setRankBook(saved);
     } catch (e) {
       setError(e.message || 'Could not save book.');
     }
@@ -232,6 +241,14 @@ export default function BookshelfTab({ lentTo = {} }) {
             book={modal.mode === 'edit' ? modal.book : null}
             onSave={handleSave}
             onClose={() => setModal(null)}
+          />
+        )}
+        {rankBook && (
+          <RankFlow
+            books={books}
+            initialBook={rankBook}
+            onSaved={load}
+            onClose={() => { setRankBook(null); load(); }}
           />
         )}
       </AnimatePresence>

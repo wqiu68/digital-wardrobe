@@ -10,6 +10,7 @@ import {
   getFriendItems,
 } from '../utils/friends';
 import FriendBookshelfView from './FriendBookshelfView';
+import FriendRankingsView from './FriendRankingsView';
 import BorrowButton from './BorrowButton';
 import posthog from 'posthog-js';
 import { supabase } from '../utils/supabase';
@@ -224,10 +225,10 @@ function FriendView({ friend, initialSection, onBack }) {
           Friends
         </button>
         <h2 style={{ ...serif, fontSize: '22px', fontWeight: 400, color: '#1a1713', fontStyle: 'italic' }}>
-          {name}'s {section === 'closet' ? 'Closet' : 'Bookshelf'}
+          {name}'s {{ closet: 'Closet', books: 'Bookshelf', rankings: 'Rankings' }[section]}
         </h2>
         <div className="flex ml-auto" style={{ border: '1px solid #e0d9d2' }}>
-          {[{ id: 'closet', label: 'Closet' }, { id: 'books', label: 'Bookshelf' }].map(s => (
+          {[{ id: 'closet', label: 'Closet' }, { id: 'books', label: 'Bookshelf' }, { id: 'rankings', label: 'Rankings' }].map(s => (
             <button
               key={s.id}
               onClick={() => setSection(s.id)}
@@ -243,7 +244,9 @@ function FriendView({ friend, initialSection, onBack }) {
           ))}
         </div>
       </div>
-      {section === 'closet' ? <FriendClosetView friend={friend} /> : <FriendBookshelfView friend={friend} />}
+      {section === 'closet' && <FriendClosetView friend={friend} />}
+      {section === 'books' && <FriendBookshelfView friend={friend} />}
+      {section === 'rankings' && <FriendRankingsView friend={friend} />}
     </div>
   );
 }
@@ -420,7 +423,7 @@ export default function FriendsTab({ onPendingCountChange }) {
                       {f.displayName && <p style={{ ...sans, fontSize: '11px', color: '#b0a89e' }}>{f.email}</p>}
                     </div>
                     <div className="flex items-center gap-4">
-                      {[{ id: 'closet', label: 'Closet' }, { id: 'books', label: 'Books' }].map(s => (
+                      {[{ id: 'closet', label: 'Closet' }, { id: 'books', label: 'Books' }, { id: 'rankings', label: 'Rankings' }].map(s => (
                         <button
                           key={s.id}
                           onClick={() => setSelectedFriend({ friend: f, section: s.id })}

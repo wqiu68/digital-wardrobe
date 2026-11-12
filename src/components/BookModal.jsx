@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { searchBooks } from '../utils/books';
+import { GENRES } from '../utils/ranking';
 
 export const SHELVES = [
   { id: 'reading', label: 'Reading' },
   { id: 'read',    label: 'Read'    },
 ];
 
-const EMPTY = { title: '', author: '', cover: '', status: 'read', rating: null, notes: '', year: '', pages: '', isbn: '', olKey: '' };
+const EMPTY = { title: '', author: '', cover: '', status: 'read', rating: null, notes: '', genre: '', year: '', pages: '', isbn: '', olKey: '' };
 
 const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
 const sans  = { fontFamily: "'Inter', sans-serif" };
@@ -231,6 +232,20 @@ export default function BookModal({ book, onSave, onClose }) {
                 <Stars value={form.rating} onChange={v => set('rating', v)} size={20} />
               </div>
             )}
+
+            {/* Genre */}
+            <div>
+              <label style={labelCls}>genre</label>
+              <select
+                value={form.genre || ''}
+                onChange={e => set('genre', e.target.value)}
+                style={{ ...sans, borderColor: '#d4ccc4', color: form.genre ? '#1a1713' : '#b0a89e' }}
+                className={inputCls + ' cursor-pointer'}
+              >
+                <option value="">Choose a genre…</option>
+                {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
 
             {/* Year + Pages */}
             <div className="grid grid-cols-2 gap-5">

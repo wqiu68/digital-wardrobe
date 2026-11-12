@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { inferGenre } from './ranking';
 
 const MAX_IMAGE_BYTES = 80000;
 
@@ -21,6 +22,7 @@ function toDb(book) {
     pages: toInt(book.pages),
     isbn: book.isbn || '',
     ol_key: book.olKey || '',
+    genre: book.genre || '',
   };
 }
 
@@ -37,6 +39,9 @@ function fromDb(row) {
     pages: row.pages,
     isbn: row.isbn,
     olKey: row.ol_key,
+    genre: row.genre || '',
+    sentiment: row.sentiment || null,
+    rankOrder: row.rank_order,
     addedAt: row.added_at,
     sort_order: row.sort_order,
   };
@@ -98,6 +103,19 @@ export async function updateBook(id, patch) {
   return fromDb(data);
 }
 
+// Place a book in your rankings. Ranking a book implies you've finished it.
+export async function setRanking(id, { sentiment, rankOrder, genre }) {
+  const patch = { sentiment, rank_order: rankOrder, status: 'read' };
+  if (genre != null) patch.genre = genre;
+  const { error } = await supabase.from('books').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
+export async function clearRanking(id) {
+  const { error } = await supabase.from('books').update({ sentiment: null, rank_order: null }).eq('id', id);
+  if (error) throw error;
+}
+
 export async function deleteBook(id) {
   const { error } = await supabase.from('books').delete().eq('id', id);
   if (error) throw error;
@@ -119,7 +137,7 @@ export async function searchBooks(query, signal) {
   const params = new URLSearchParams({
     q,
     limit: '8',
-    fields: 'key,title,author_name,first_publish_year,cover_i,isbn,number_of_pages_median',
+    fields: 'key,title,author_name,first_publish_year,cover_i,isbn,number_of_pages_median,subject',
   });
   const res = await fetch(`https://openlibrary.org/search.json?${params}`, { signal });
   if (!res.ok) throw new Error('Book search is unavailable right now.');
@@ -132,5 +150,6 @@ export async function searchBooks(query, signal) {
     isbn: d.isbn?.[0] || '',
     olKey: d.key || '',
     cover: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : '',
+    genre: inferGenre(d.subject),
   }));
 }
