@@ -1,4 +1,5 @@
 import { supabase, getCurrentUser } from './supabase';
+import { normalizePhone } from './phone';
 
 // Ensure the current user has a profile row (safe to call multiple times)
 export async function ensureProfile(user, displayName) {
@@ -26,17 +27,66 @@ export async function updateDisplayName(name) {
   if (error) throw error;
 }
 
-// Find a user by email and send them a friend request
-export async function sendFriendRequest(email) {
+// ─── Phone numbers (private; see supabase/migrations/*_phone_friends.sql) ────
+
+export async function getMyPhone() {
   const user = await getCurrentUser();
+  const { data, error } = await supabase.from('phone_numbers').select('phone').eq('user_id', user.id).maybeSingle();
+  if (error) throw error;
+  return data?.phone || '';
+}
 
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('id, display_name, email')
-    .eq('email', email.toLowerCase().trim())
-    .single();
+export async function setMyPhone(input) {
+  const user = await getCurrentUser();
+  if (!String(input || '').trim()) {
+    const { error } = await supabase.from('phone_numbers').delete().eq('user_id', user.id);
+    if (error) throw error;
+    return '';
+  }
+  const phone = normalizePhone(input);
+  if (!phone) throw new Error("That doesn't look like a phone number. Include the area code.");
+  const { error } = await supabase.from('phone_numbers').upsert({ user_id: user.id, phone, updated_at: new Date().toISOString() });
+  if (error) {
+    if (error.code === '23505') throw new Error('That number is already on another homey account.');
+    throw error;
+  }
+  return phone;
+}
 
-  if (profileError || !profile) throw new Error('No account found with that email.');
+// [{ id, display_name, phone }] for the numbers that belong to homey members
+export async function findByPhones(phones) {
+  const list = [...new Set(phones.filter(Boolean))].slice(0, 100);
+  if (!list.length) return [];
+  const { data, error } = await supabase.rpc('find_profiles_by_phone', { phones: list });
+  if (error) throw error;
+  return data || [];
+}
+
+// ─── Friend requests ─────────────────────────────────────────────────────────
+
+// Send a request by email address or phone number
+export async function sendFriendRequest(contact) {
+  const value = contact.trim();
+  let profile;
+  if (value.includes('@')) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, display_name, email')
+      .eq('email', value.toLowerCase())
+      .maybeSingle();
+    if (!data) throw new Error('No homey account uses that email yet.');
+    profile = data;
+  } else {
+    const phone = normalizePhone(value);
+    if (!phone) throw new Error("That doesn't look like a phone number. Include the area code.");
+    [profile] = await findByPhones([phone]);
+    if (!profile) throw new Error('NOT_FOUND_PHONE');
+  }
+  return sendFriendRequestTo(profile);
+}
+
+export async function sendFriendRequestTo(profile) {
+  const user = await getCurrentUser();
   if (profile.id === user.id) throw new Error('You cannot add yourself.');
 
   // Check if a friendship already exists in either direction

@@ -5,6 +5,7 @@ import { getMyBorrowing } from '../utils/loans';
 import { sortRanked, computeScores } from '../utils/ranking';
 import { CATEGORIES } from './ItemModal';
 import { ScoreBadge, MiniCover } from './RankedList';
+import PhoneField from './PhoneField';
 
 const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
 const sans  = { fontFamily: "'Open Sans', sans-serif" };
@@ -139,6 +140,7 @@ export default function ProfileView({ fallbackName, items, lending, onNameChange
         <p style={{ ...sans, fontSize: '12px', color: MUTED, marginTop: '10px' }}>
           {[profile?.email, since && `member since ${since}`].filter(Boolean).join(' · ')}
         </p>
+        <PhoneField />
         {error && <p style={{ ...sans, fontSize: '12px', color: '#c0392b', marginTop: '10px' }}>{error}</p>}
       </div>
 

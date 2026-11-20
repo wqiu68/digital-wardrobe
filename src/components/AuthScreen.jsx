@@ -1,14 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { login, register, loginWithGoogle } from '../utils/auth';
 
 const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
 const sans  = { fontFamily: "'Open Sans', sans-serif" };
 
+// If a sign-in fails (e.g. Google), Supabase sends the person back with the
+// reason in the URL instead of logging them in. Surface it rather than
+// silently showing the login form again.
+function errorFromUrl() {
+  const params = new URLSearchParams(window.location.hash.slice(1) + '&' + window.location.search.slice(1));
+  const desc = params.get('error_description');
+  if (!desc) return '';
+  return `Sign-in didn't work: ${desc.replace(/\+/g, ' ')}`;
+}
+
 export default function AuthScreen({ onAuth }) {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(errorFromUrl);
+
+  // Tidy the error out of the address bar once it's shown
+  useEffect(() => {
+    if (window.location.hash.includes('error') || window.location.search.includes('error')) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
   const [loading, setLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
 

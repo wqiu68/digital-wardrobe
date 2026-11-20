@@ -5,6 +5,8 @@ import {
   getPendingRequests,
   getOutgoingRequests,
   sendFriendRequest,
+  sendFriendRequestTo,
+  findByPhones,
   respondToRequest,
   removeFriend,
   getFriendItems,
@@ -12,6 +14,8 @@ import {
 import FriendBookshelfView from './FriendBookshelfView';
 import FriendRankingsView from './FriendRankingsView';
 
+import PhoneField from './PhoneField';
+import { canPickContacts, pickContacts, inviteByText } from '../utils/phone';
 const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
 const sans  = { fontFamily: "'Open Sans', sans-serif" };
 
@@ -229,6 +233,10 @@ export default function FriendsTab({ onPendingCountChange, scope }) {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
   const [addSuccess, setAddSuccess] = useState('');
+  const [notOnHomey, setNotOnHomey] = useState(false); // typed number isn't on homey → offer invite
+  const [picked, setPicked] = useState(null);          // contact picker results { matches, missing }
+  const [sentTo, setSentTo] = useState({});
+  const [inviteNote, setInviteNote] = useState('');
   const [loading, setLoading] = useState(true);
 
   async function loadAll() {
@@ -255,14 +263,52 @@ export default function FriendsTab({ onPendingCountChange, scope }) {
     setAddSuccess('');
     try {
       const profile = await sendFriendRequest(addEmail.trim());
-      setAddSuccess(`Friend request sent to ${profile.display_name || profile.email}.`);
+      setAddSuccess(`Friend request sent to ${profile.display_name || profile.email || 'them'}.`);
       setAddEmail('');
       await loadAll();
     } catch (e) {
-      setAddError(e.message);
+      if (e.message === 'NOT_FOUND_PHONE') {
+        setNotOnHomey(true);
+        setAddError('No one on homey has that number yet.');
+      } else {
+        setAddError(/find_profiles_by_phone|schema cache/i.test(e.message || '')
+          ? 'Finding friends by phone needs a database update first.'
+          : e.message);
+      }
     } finally {
       setAdding(false);
     }
+  }
+
+  async function handlePickContacts() {
+    setAddError(''); setAddSuccess(''); setNotOnHomey(false);
+    try {
+      const contacts = await pickContacts();
+      if (!contacts.length) return;
+      const found = await findByPhones(contacts.map(c => c.phone));
+      const known = new Set([...friends, ...outgoingRequests].map(f => f.userId));
+      const matches = found.map(p => ({ ...p, contactName: contacts.find(c => c.phone === p.phone)?.name, already: known.has(p.id) }));
+      const foundPhones = new Set(found.map(p => p.phone));
+      const missing = contacts.filter(c => !foundPhones.has(c.phone));
+      setPicked({ matches, missing });
+    } catch (e) {
+      if (e.name !== 'AbortError') setAddError(e.message || 'Could not open your contacts.');
+    }
+  }
+
+  async function addPicked(p) {
+    try {
+      await sendFriendRequestTo(p);
+      setSentTo(s => ({ ...s, [p.id]: true }));
+      await loadAll();
+    } catch (e) {
+      setAddError(e.message);
+    }
+  }
+
+  async function invite(name) {
+    const r = await inviteByText(name);
+    setInviteNote(r === 'copied' ? 'Invite copied. Paste it into a text.' : r === 'failed' ? `Send them this link: ${window.location.origin}` : '');
   }
 
   async function handleRespond(id, accept) {
@@ -299,6 +345,8 @@ export default function FriendsTab({ onPendingCountChange, scope }) {
   return (
     <div className="max-w-lg">
 
+      <PhoneField variant="banner" />
+
       {/* ── Add a friend ── */}
       <div className="mb-12">
         <h2 style={{ ...serif, fontSize: '20px', fontWeight: 400, color: '#1a1713', marginBottom: '16px' }}>
@@ -306,24 +354,70 @@ export default function FriendsTab({ onPendingCountChange, scope }) {
         </h2>
         <form onSubmit={handleAdd} className="flex gap-3">
           <input
-            type="email"
+            type="text"
+            autoComplete="off"
             value={addEmail}
-            onChange={e => { setAddEmail(e.target.value); setAddError(''); setAddSuccess(''); }}
-            placeholder="Enter their email address"
+            onChange={e => { setAddEmail(e.target.value); setAddError(''); setAddSuccess(''); setNotOnHomey(false); }}
+            placeholder="Phone number or email"
             style={{ ...sans, fontSize: '13px', color: '#1a1713', borderColor: '#d4ccc4', flex: 1 }}
             className="bg-transparent border-b py-1.5 focus:outline-none placeholder:text-black/20"
           />
           <button
             type="submit"
             disabled={adding || !addEmail.trim()}
-            style={{ ...sans, fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', backgroundColor: '#1a1713', color: '#FAF8F5' }}
-            className="px-5 py-2 hover:opacity-80 transition-opacity disabled:opacity-40"
+            style={{ ...sans, fontSize: '12px', backgroundColor: '#1a1713', color: '#FAF8F5' }}
+            className="rounded-full px-5 py-1.5 hover:opacity-80 transition-opacity disabled:opacity-40"
           >
-            {adding ? '…' : 'Invite'}
+            {adding ? '…' : 'Add'}
           </button>
         </form>
         {addError && <p style={{ ...sans, fontSize: '12px', color: '#c0392b', marginTop: '8px' }}>{addError}</p>}
+        {notOnHomey && (
+          <button onClick={() => invite('')} style={{ ...sans, fontSize: '12px', color: '#1a1713', marginTop: '6px' }} className="underline underline-offset-2 hover:opacity-60">
+            Invite them by text →
+          </button>
+        )}
         {addSuccess && <p style={{ ...sans, fontSize: '12px', color: '#7a9e7e', marginTop: '8px' }}>{addSuccess}</p>}
+
+        <div className="flex flex-wrap gap-x-6 gap-y-2 mt-5">
+          {canPickContacts && (
+            <button onClick={handlePickContacts} style={{ ...sans, fontSize: '12px', color: '#1a1713' }} className="hover:opacity-60">
+              Choose from contacts →
+            </button>
+          )}
+          <button onClick={() => invite('')} style={{ ...sans, fontSize: '12px', color: '#a09890' }} className="hover:text-black">
+            Not on homey yet? Invite by text →
+          </button>
+        </div>
+        {inviteNote && <p style={{ ...sans, fontSize: '12px', color: '#7a9e7e', marginTop: '8px' }}>{inviteNote}</p>}
+
+        {/* Contact picker results */}
+        {picked && (
+          <div className="mt-5 rounded-2xl px-5 py-3" style={{ backgroundColor: '#f6f1ea', border: '1px solid #ece4d8' }}>
+            {picked.matches.length === 0 && (
+              <p style={{ ...sans, fontSize: '12px', color: '#a09890', padding: '6px 0' }}>None of those contacts are on homey yet.</p>
+            )}
+            {picked.matches.map(p => (
+              <div key={p.id} className="flex items-center justify-between py-2">
+                <div>
+                  <p style={{ ...sans, fontSize: '13px', color: '#1a1713', fontWeight: 500 }}>{p.display_name || p.contactName}</p>
+                  {p.contactName && p.contactName !== p.display_name && <p style={{ ...sans, fontSize: '11px', color: '#a09890' }}>{p.contactName} in your contacts</p>}
+                </div>
+                {p.already || sentTo[p.id]
+                  ? <span style={{ ...sans, fontSize: '12px', color: '#a09890' }}>{sentTo[p.id] ? 'Request sent' : 'Already added'}</span>
+                  : <button onClick={() => addPicked(p)} style={{ ...sans, fontSize: '12px', backgroundColor: '#1a1713', color: '#FAF8F5' }} className="rounded-full px-4 py-1 hover:opacity-80">Add</button>}
+              </div>
+            ))}
+            {picked.missing.length > 0 && (
+              <div className="flex items-center justify-between py-2" style={{ borderTop: picked.matches.length ? '1px solid #ece5dc' : 'none' }}>
+                <span style={{ ...sans, fontSize: '12px', color: '#a09890' }}>
+                  {picked.missing.length === 1 ? `${picked.missing[0].name || 'One contact'} isn't on homey yet` : `${picked.missing.length} contacts aren't on homey yet`}
+                </span>
+                <button onClick={() => invite(picked.missing.length === 1 ? picked.missing[0].name : '')} style={{ ...sans, fontSize: '12px', color: '#1a1713' }} className="underline underline-offset-2 hover:opacity-60">Invite</button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {loading ? (
