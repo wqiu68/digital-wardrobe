@@ -230,6 +230,9 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
     loadLending();
   }, []);
 
+  // Every page (and login itself) starts at the top, not wherever the last screen was scrolled
+  useEffect(() => { window.scrollTo(0, 0); }, [view]);
+
   async function loadLending() {
     try {
       setLending(await getMyLending());
