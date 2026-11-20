@@ -3,8 +3,8 @@ import { getBooks, getFriendBooks } from '../utils/books';
 import { computeScores, bookKey } from '../utils/ranking';
 import RankedList from './RankedList';
 
-const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
-const sans  = { fontFamily: "'Inter', sans-serif" };
+const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
+const sans  = { fontFamily: "'Open Sans', sans-serif" };
 
 export default function FriendRankingsView({ friend }) {
   const [books, setBooks] = useState([]);
@@ -26,7 +26,7 @@ export default function FriendRankingsView({ friend }) {
 
   const name = friend.displayName || 'They';
 
-  if (loading) return <p style={{ ...serif, fontSize: '20px', color: '#c9b99a', fontStyle: 'italic' }}>loading rankings…</p>;
+  if (loading) return <p style={{ ...serif, fontSize: '20px', color: '#c9b99a' }}>loading rankings…</p>;
 
   return (
     <div className="max-w-3xl">

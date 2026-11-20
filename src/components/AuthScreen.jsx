@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { login, register, loginWithGoogle } from '../utils/auth';
 
-const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
-const sans  = { fontFamily: "'Inter', sans-serif" };
+const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
+const sans  = { fontFamily: "'Open Sans', sans-serif" };
 
 export default function AuthScreen({ onAuth }) {
   const [mode, setMode] = useState('login');
@@ -42,7 +42,7 @@ export default function AuthScreen({ onAuth }) {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: '#FAF8F5', fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-h-screen flex" style={{ backgroundColor: '#FAF8F5', fontFamily: "'Open Sans', sans-serif" }}>
 
       {/* Left panel */}
       <div className="hidden lg:flex flex-col justify-between w-[52%] p-16" style={{ backgroundColor: '#f0ebe3' }}>
@@ -50,7 +50,7 @@ export default function AuthScreen({ onAuth }) {
           homey
         </span>
         <div>
-          <h1 style={{ ...serif, fontSize: '80px', fontWeight: 300, color: '#1a1713', lineHeight: 1, marginBottom: '24px', fontStyle: 'italic' }}>
+          <h1 style={{ ...serif, fontSize: '80px', fontWeight: 300, color: '#1a1713', lineHeight: 1, marginBottom: '24px' }}>
             Your<br />Digital<br />Home.
           </h1>
           <p style={{ ...sans, fontSize: '13px', color: '#a09890', lineHeight: 1.8, maxWidth: '260px' }}>
@@ -65,7 +65,7 @@ export default function AuthScreen({ onAuth }) {
         <div className="w-full max-w-xs">
 
           <div className="lg:hidden mb-10">
-            <h1 style={{ ...serif, fontSize: '48px', fontWeight: 300, color: '#1a1713', fontStyle: 'italic', lineHeight: 1.1 }}>
+            <h1 style={{ ...serif, fontSize: '48px', fontWeight: 300, color: '#1a1713', lineHeight: 1.1 }}>
               homey
             </h1>
           </div>

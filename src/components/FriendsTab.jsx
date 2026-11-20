@@ -11,13 +11,9 @@ import {
 } from '../utils/friends';
 import FriendBookshelfView from './FriendBookshelfView';
 import FriendRankingsView from './FriendRankingsView';
-import BorrowButton from './BorrowButton';
-import posthog from 'posthog-js';
-import { supabase } from '../utils/supabase';
-import { getLoansForFriend, requestBorrow, withdrawLoan } from '../utils/loans';
 
-const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
-const sans  = { fontFamily: "'Inter', sans-serif" };
+const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
+const sans  = { fontFamily: "'Open Sans', sans-serif" };
 
 // ─── Read-only item card (no drag / edit / delete) ────────────────────────────
 
@@ -71,36 +67,12 @@ function FriendClosetView({ friend }) {
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [activeOccasion, setActiveOccasion] = useState('ALL');
   const [error, setError] = useState('');
-  const [loans, setLoans] = useState([]);
-  const [myId, setMyId] = useState(null);
-  const [busy, setBusy] = useState(null);
-
-  async function loadLoans() {
-    setLoans(await getLoansForFriend(friend.userId));
-  }
-
   useEffect(() => {
-    Promise.all([
-      getFriendItems(friend.userId).then(setItems),
-      loadLoans(),
-      supabase.auth.getUser().then(({ data }) => setMyId(data.user?.id)),
-    ])
+    getFriendItems(friend.userId)
+      .then(setItems)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [friend.userId]);
-
-  async function act(itemId, fn) {
-    setBusy(itemId);
-    setError('');
-    try {
-      await fn();
-      await loadLoans();
-    } catch (e) {
-      setError(e.message || 'Something went wrong.');
-    } finally {
-      setBusy(null);
-    }
-  }
 
   const counts = {};
   items.forEach(i => { counts[i.category] = (counts[i.category] || 0) + 1; });
@@ -178,26 +150,15 @@ function FriendClosetView({ friend }) {
       {error && <p style={{ ...sans, fontSize: '13px', color: '#c0392b' }}>{error}</p>}
 
       {loading ? (
-        <p style={{ ...serif, fontSize: '20px', color: '#c9b99a', fontStyle: 'italic' }}>loading closet…</p>
+        <p style={{ ...serif, fontSize: '20px', color: '#c9b99a' }}>loading closet…</p>
       ) : filtered.length === 0 ? (
-        <p style={{ ...serif, fontSize: '20px', color: '#c9b99a', fontStyle: 'italic' }}>
+        <p style={{ ...serif, fontSize: '20px', color: '#c9b99a' }}>
           {items.length === 0 ? `${friend.displayName || 'They'} hasn't added anything yet.` : 'Nothing in this category.'}
         </p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-4 gap-y-8">
           {filtered.map(item => (
-            <ReadOnlyItemCard key={item.id} item={item}>
-              <BorrowButton
-                loans={loans.filter(l => l.itemId === item.id)}
-                myId={myId}
-                busy={busy === item.id}
-                onRequest={() => act(item.id, async () => {
-                  await requestBorrow({ itemId: item.id }, friend.userId);
-                  posthog.capture('borrow_requested', { kind: 'item' });
-                })}
-                onCancel={loan => act(item.id, () => withdrawLoan(loan.id))}
-              />
-            </ReadOnlyItemCard>
+            <ReadOnlyItemCard key={item.id} item={item} />
           ))}
         </div>
       )}
@@ -207,8 +168,14 @@ function FriendClosetView({ friend }) {
 
 // ─── Friend page: back + name + Closet / Bookshelf toggle ────────────────────
 
-function FriendView({ friend, initialSection, onBack }) {
-  const [section, setSection] = useState(initialSection || 'closet');
+// Which parts of a friend's page each area of the app shows
+const FRIEND_SECTIONS = [{ id: 'closet', label: 'Closet' }, { id: 'books', label: 'Bookshelf' }, { id: 'rankings', label: 'Rankings' }];
+const SCOPES = { closet: ['closet'], books: ['books', 'rankings'] };
+const sectionsFor = scope => FRIEND_SECTIONS.filter(s => !SCOPES[scope] || SCOPES[scope].includes(s.id));
+
+function FriendView({ friend, initialSection, scope, onBack }) {
+  const sections = sectionsFor(scope);
+  const [section, setSection] = useState(initialSection || sections[0].id);
   const name = friend.displayName || friend.email;
 
   return (
@@ -224,11 +191,11 @@ function FriendView({ friend, initialSection, onBack }) {
           </svg>
           Friends
         </button>
-        <h2 style={{ ...serif, fontSize: '22px', fontWeight: 400, color: '#1a1713', fontStyle: 'italic' }}>
+        <h2 style={{ ...serif, fontSize: '22px', fontWeight: 400, color: '#1a1713' }}>
           {name}'s {{ closet: 'Closet', books: 'Bookshelf', rankings: 'Rankings' }[section]}
         </h2>
-        <div className="flex ml-auto" style={{ border: '1px solid #e0d9d2' }}>
-          {[{ id: 'closet', label: 'Closet' }, { id: 'books', label: 'Bookshelf' }, { id: 'rankings', label: 'Rankings' }].map(s => (
+        {sections.length > 1 && <div className="flex ml-auto" style={{ border: '1px solid #e0d9d2' }}>
+          {sections.map(s => (
             <button
               key={s.id}
               onClick={() => setSection(s.id)}
@@ -242,7 +209,7 @@ function FriendView({ friend, initialSection, onBack }) {
               {s.label}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
       {section === 'closet' && <FriendClosetView friend={friend} />}
       {section === 'books' && <FriendBookshelfView friend={friend} />}
@@ -253,7 +220,7 @@ function FriendView({ friend, initialSection, onBack }) {
 
 // ─── Friends tab (list + add friend) ─────────────────────────────────────────
 
-export default function FriendsTab({ onPendingCountChange }) {
+export default function FriendsTab({ onPendingCountChange, scope }) {
   const [friends, setFriends] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [outgoingRequests, setOutgoingRequests] = useState([]);
@@ -323,6 +290,7 @@ export default function FriendsTab({ onPendingCountChange }) {
       <FriendView
         friend={selectedFriend.friend}
         initialSection={selectedFriend.section}
+        scope={scope}
         onBack={() => setSelectedFriend(null)}
       />
     );
@@ -333,7 +301,7 @@ export default function FriendsTab({ onPendingCountChange }) {
 
       {/* ── Add a friend ── */}
       <div className="mb-12">
-        <h2 style={{ ...serif, fontSize: '20px', fontWeight: 400, color: '#1a1713', fontStyle: 'italic', marginBottom: '16px' }}>
+        <h2 style={{ ...serif, fontSize: '20px', fontWeight: 400, color: '#1a1713', marginBottom: '16px' }}>
           Add a Friend
         </h2>
         <form onSubmit={handleAdd} className="flex gap-3">
@@ -359,14 +327,14 @@ export default function FriendsTab({ onPendingCountChange }) {
       </div>
 
       {loading ? (
-        <p style={{ ...serif, fontSize: '18px', color: '#c9b99a', fontStyle: 'italic' }}>loading…</p>
+        <p style={{ ...serif, fontSize: '18px', color: '#c9b99a' }}>loading…</p>
       ) : (
         <>
           {/* ── Incoming friend requests ── */}
           {pendingRequests.length > 0 && (
             <div className="mb-10">
               <div className="flex items-center gap-4 mb-4">
-                <h3 style={{ ...serif, fontSize: '16px', fontWeight: 400, color: '#1a1713', fontStyle: 'italic' }}>
+                <h3 style={{ ...serif, fontSize: '16px', fontWeight: 400, color: '#1a1713' }}>
                   Friend Requests
                 </h3>
                 <span style={{ ...sans, fontSize: '11px', color: '#c9b99a', fontWeight: 600 }}>{pendingRequests.length}</span>
@@ -404,14 +372,14 @@ export default function FriendsTab({ onPendingCountChange }) {
           {/* ── Friends list ── */}
           <div className="mb-10">
             <div className="flex items-center gap-4 mb-4">
-              <h3 style={{ ...serif, fontSize: '16px', fontWeight: 400, color: '#1a1713', fontStyle: 'italic' }}>
+              <h3 style={{ ...serif, fontSize: '16px', fontWeight: 400, color: '#1a1713' }}>
                 My Friends
               </h3>
               <span style={{ ...sans, fontSize: '11px', color: '#b0a89e' }}>{friends.length}</span>
               <div className="flex-1 h-px" style={{ backgroundColor: '#e8e3de' }} />
             </div>
             {friends.length === 0 ? (
-              <p style={{ ...serif, fontSize: '16px', color: '#c9b99a', fontStyle: 'italic' }}>
+              <p style={{ ...serif, fontSize: '16px', color: '#c9b99a' }}>
                 No friends yet. Invite someone above.
               </p>
             ) : (
@@ -423,7 +391,7 @@ export default function FriendsTab({ onPendingCountChange }) {
                       {f.displayName && <p style={{ ...sans, fontSize: '11px', color: '#b0a89e' }}>{f.email}</p>}
                     </div>
                     <div className="flex items-center gap-4">
-                      {[{ id: 'closet', label: 'Closet' }, { id: 'books', label: 'Books' }, { id: 'rankings', label: 'Rankings' }].map(s => (
+                      {sectionsFor(scope).map(s => (
                         <button
                           key={s.id}
                           onClick={() => setSelectedFriend({ friend: f, section: s.id })}
@@ -454,7 +422,7 @@ export default function FriendsTab({ onPendingCountChange }) {
           {outgoingRequests.length > 0 && (
             <div>
               <div className="flex items-center gap-4 mb-4">
-                <h3 style={{ ...serif, fontSize: '16px', fontWeight: 400, color: '#1a1713', fontStyle: 'italic' }}>
+                <h3 style={{ ...serif, fontSize: '16px', fontWeight: 400, color: '#1a1713' }}>
                   Sent
                 </h3>
                 <div className="flex-1 h-px" style={{ backgroundColor: '#e8e3de' }} />

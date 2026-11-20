@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { ClothBinding } from './BookcaseDecor';
 import { sortRanked, computeScores, scoreColor, bookKey } from '../utils/ranking';
 
-const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
-const sans  = { fontFamily: "'Inter', sans-serif" };
+const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
+const sans  = { fontFamily: "'Open Sans', sans-serif" };
 
 export function ScoreBadge({ score, size = 42 }) {
   const color = scoreColor(score);
@@ -48,7 +48,7 @@ export default function RankedList({ books, myScores, onRerank, onRemove, emptyT
   const shown = genre === 'ALL' ? ranked : ranked.filter(b => (b.genre || 'Uncategorized') === genre);
 
   if (!ranked.length) {
-    return <p style={{ ...serif, fontSize: '22px', color: '#c9b99a', fontStyle: 'italic', padding: '48px 0' }}>{emptyText}</p>;
+    return <p style={{ ...serif, fontSize: '22px', color: '#c9b99a', padding: '48px 0' }}>{emptyText}</p>;
   }
 
   return (
@@ -73,7 +73,7 @@ export default function RankedList({ books, myScores, onRerank, onRemove, emptyT
           return (
             <li key={book.id}>
               <div className="group flex items-center gap-4 sm:gap-5 py-3" style={{ borderBottom: '1px solid #f0ebe3' }}>
-                <span style={{ ...serif, fontSize: '26px', fontStyle: 'italic', color: '#c9b99a', width: '34px', textAlign: 'right', lineHeight: 1 }} className="shrink-0">
+                <span style={{ ...serif, fontSize: '26px', color: '#c9b99a', width: '34px', textAlign: 'right', lineHeight: 1 }} className="shrink-0">
                   {i + 1}
                 </span>
                 <MiniCover book={book} />

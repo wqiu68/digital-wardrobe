@@ -5,12 +5,14 @@ import { GENRES } from '../utils/ranking';
 export const SHELVES = [
   { id: 'reading', label: 'Reading' },
   { id: 'read',    label: 'Read'    },
+  { id: 'want',    label: 'Want to Read' },
 ];
+export const SHELF_TITLES = { reading: 'Currently Reading', read: 'Read', want: 'Want to Read' };
 
 const EMPTY = { title: '', author: '', cover: '', status: 'read', rating: null, notes: '', genre: '', year: '', pages: '', isbn: '', olKey: '' };
 
-const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
-const sans  = { fontFamily: "'Inter', sans-serif" };
+const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
+const sans  = { fontFamily: "'Open Sans', sans-serif" };
 
 function compressImage(dataUrl, maxDim = 400, quality = 0.6) {
   return new Promise((resolve) => {
@@ -118,7 +120,7 @@ export default function BookModal({ book, onSave, onClose }) {
       <div className="relative w-full sm:max-w-lg shadow-2xl overflow-hidden max-h-[95vh] flex flex-col" style={{ backgroundColor: '#FAF8F5' }}>
 
         <div className="flex items-center justify-between px-7 py-5" style={{ borderBottom: '1px solid #e8e3de' }}>
-          <h2 style={{ ...serif, fontSize: '20px', fontWeight: 300, color: '#1a1713', fontStyle: 'italic' }}>
+          <h2 style={{ ...serif, fontSize: '20px', fontWeight: 300, color: '#1a1713' }}>
             {book ? 'edit book' : 'add a book'}
           </h2>
           <button onClick={onClose} style={{ ...sans, color: '#b0a89e', fontSize: '16px' }} className="hover:opacity-60 transition-opacity leading-none">✕</button>

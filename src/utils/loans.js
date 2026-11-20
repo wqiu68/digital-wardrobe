@@ -1,9 +1,9 @@
-import { supabase } from './supabase';
+import { supabase, getCurrentUser } from './supabase';
 
 // Loans cover both books and closet items. Each row points at exactly one of them.
 
 async function me() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   return user.id;
 }
 
@@ -76,6 +76,7 @@ export async function getMyBorrowing() {
     .from('book_loans')
     .select(`*, ${TARGETS}, ${OWNER}`)
     .eq('borrower_id', await me())
+    .not('book_id', 'is', null) // lending is books-only for now
     .in('status', ['requested', 'lent', 'declined'])
     .order('updated_at', { ascending: false });
   if (error) throw error;
@@ -90,6 +91,7 @@ export async function getMyLending() {
     .from('book_loans')
     .select(`*, ${TARGETS}, ${BORROWER}`)
     .eq('owner_id', await me())
+    .not('book_id', 'is', null) // lending is books-only for now
     .in('status', ['requested', 'lent'])
     .order('created_at', { ascending: true });
   if (error) throw error;

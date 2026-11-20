@@ -5,13 +5,14 @@ import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@d
 import { CSS } from '@dnd-kit/utilities';
 import posthog from 'posthog-js';
 import { getBooks, addBook, updateBook, deleteBook, reorderBooks } from '../utils/books';
-import BookModal, { SHELVES, Stars } from './BookModal';
+import BookModal, { SHELVES, SHELF_TITLES, Stars } from './BookModal';
 import RankFlow from './RankFlow';
+import GoodreadsImport from './GoodreadsImport';
 import { isRanked } from '../utils/ranking';
 import { Bookcase, ShelvedBook, BOOKCASE_GRID, ON_WOOD } from './BookcaseDecor';
 
-const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
-const sans  = { fontFamily: "'Inter', sans-serif" };
+const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
+const sans  = { fontFamily: "'Open Sans', sans-serif" };
 
 const ctrlBtn = { backgroundColor: 'rgba(250,248,245,0.92)', color: '#6b5a4a', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' };
 
@@ -74,6 +75,7 @@ export default function BookshelfTab({ lentTo = {} }) {
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(null);
   const [rankBook, setRankBook] = useState(null);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
 
   const sensors = useSensors(
@@ -111,7 +113,9 @@ export default function BookshelfTab({ lentTo = {} }) {
       setError('');
       if (justFinished) setRankBook(saved);
     } catch (e) {
-      setError(e.message || 'Could not save book.');
+      setError(e.message?.includes('books_status_check')
+        ? 'The Want to Read shelf needs a database update — run supabase/migrations/20261120000000_want_to_read.sql in Supabase.'
+        : e.message || 'Could not save book.');
     }
   }
 
@@ -196,11 +200,11 @@ export default function BookshelfTab({ lentTo = {} }) {
 
       {loading ? (
         <div className="flex items-center justify-center py-36">
-          <p style={{ ...serif, fontSize: '20px', fontWeight: 300, color: '#c9b99a', fontStyle: 'italic' }}>loading your bookshelf…</p>
+          <p style={{ ...serif, fontSize: '20px', fontWeight: 300, color: '#c9b99a' }}>loading your bookshelf…</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-36 text-center">
-          <p style={{ ...serif, fontSize: '28px', fontWeight: 300, color: '#c9b99a', fontStyle: 'italic', marginBottom: '24px' }}>
+          <p style={{ ...serif, fontSize: '28px', fontWeight: 300, color: '#c9b99a', marginBottom: '24px' }}>
             {search ? 'No results.' : books.length === 0 ? 'Your bookshelf is empty.' : 'Nothing on this shelf.'}
           </p>
           {books.length === 0 && (
@@ -212,6 +216,11 @@ export default function BookshelfTab({ lentTo = {} }) {
               Add Your First Book
             </button>
           )}
+          {books.length === 0 && (
+            <button onClick={() => setImporting(true)} style={{ ...sans, fontSize: '12px', color: '#8a8178', marginTop: '16px' }} className="hover:text-black transition-colors">
+              or import your Goodreads library →
+            </button>
+          )}
         </div>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -221,18 +230,27 @@ export default function BookshelfTab({ lentTo = {} }) {
                 const shelfBooks = filtered.filter(b => b.status === shelf.id);
                 if (!shelfBooks.length) return null;
                 return (
-                  <Bookcase key={shelf.id} title={shelf.id === 'reading' ? 'Currently Reading' : 'Read'} count={shelfBooks.length}>
+                  <Bookcase key={shelf.id} title={SHELF_TITLES[shelf.id]} count={shelfBooks.length}>
                     <BookGrid books={shelfBooks} lentTo={lentTo} onEdit={openEdit} onDelete={handleDelete} />
                   </Bookcase>
                 );
               })
             ) : (
-              <Bookcase title={activeShelf === 'reading' ? 'Currently Reading' : 'Read'} count={filtered.length}>
+              <Bookcase title={SHELF_TITLES[activeShelf]} count={filtered.length}>
                 <BookGrid books={filtered} lentTo={lentTo} onEdit={openEdit} onDelete={handleDelete} />
               </Bookcase>
             )}
           </SortableContext>
         </DndContext>
+      )}
+
+      {/* Goodreads import lives quietly at the bottom of the shelf */}
+      {!loading && books.length > 0 && (
+        <div className="flex justify-center mt-16 pt-8" style={{ borderTop: '1px solid #ece5dc' }}>
+          <button onClick={() => setImporting(true)} style={{ ...sans, fontSize: '12px', color: '#a09890' }} className="hover:text-black transition-colors">
+            Have a Goodreads library? Import it →
+          </button>
+        </div>
       )}
 
       <AnimatePresence>
@@ -242,6 +260,9 @@ export default function BookshelfTab({ lentTo = {} }) {
             onSave={handleSave}
             onClose={() => setModal(null)}
           />
+        )}
+        {importing && (
+          <GoodreadsImport existingBooks={books} onImported={load} onClose={() => setImporting(false)} />
         )}
         {rankBook && (
           <RankFlow

@@ -5,8 +5,8 @@ import { GENRES, SENTIMENTS, bucket, orderAt, computeScores, sortRanked, isRanke
 import { ClothBinding } from './BookcaseDecor';
 import { MiniCover, ScoreBadge } from './RankedList';
 
-const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
-const sans  = { fontFamily: "'Inter', sans-serif" };
+const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
+const sans  = { fontFamily: "'Open Sans', sans-serif" };
 const label = { ...sans, fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#a09890', display: 'block', marginBottom: '10px' };
 
 function BigCover({ book }) {
@@ -68,7 +68,7 @@ function PickStep({ books, onPick }) {
         <div>
           <span style={label}>From your bookshelf</span>
           <div className="max-h-64 overflow-y-auto -mx-2">
-            {mine.map(b => <Row key={b.id} book={b} note={b.status === 'reading' ? 'reading' : ''} onClick={() => onPick(b)} />)}
+            {mine.map(b => <Row key={b.id} book={b} note={b.status === 'reading' ? 'reading' : b.status === 'want' ? 'want to read' : ''} onClick={() => onPick(b)} />)}
           </div>
         </div>
       )}
@@ -81,7 +81,7 @@ function PickStep({ books, onPick }) {
         </div>
       )}
       {!mine.length && q.length < 3 && (
-        <p style={{ ...serif, fontSize: '17px', fontStyle: 'italic', color: '#b0a89e' }}>
+        <p style={{ ...serif, fontSize: '17px', color: '#b0a89e' }}>
           {unranked.length ? 'Nothing matches on your shelf.' : 'Everything on your shelf is ranked. Search for another book you’ve read.'}
         </p>
       )}
@@ -192,7 +192,7 @@ export default function RankFlow({ books, initialBook, onSaved, onClose, onRemov
       <div className="relative w-full sm:max-w-lg shadow-2xl overflow-hidden max-h-[95vh] flex flex-col" style={{ backgroundColor: '#FAF8F5' }}>
 
         <div className="flex items-center justify-between px-7 py-5" style={{ borderBottom: '1px solid #e8e3de' }}>
-          <h2 style={{ ...serif, fontSize: '22px', fontWeight: 300, color: '#1a1713', fontStyle: 'italic' }}>{titles[step]}</h2>
+          <h2 style={{ ...serif, fontSize: '22px', fontWeight: 300, color: '#1a1713' }}>{titles[step]}</h2>
           <button onClick={onClose} style={{ ...sans, color: '#b0a89e', fontSize: '16px' }} className="hover:opacity-60 transition-opacity leading-none">✕</button>
         </div>
 
@@ -301,7 +301,7 @@ export default function RankFlow({ books, initialBook, onSaved, onClose, onRemov
           )}
 
           {step === 'saving' && (
-            <p style={{ ...serif, fontSize: '20px', fontStyle: 'italic', color: '#c9b99a', textAlign: 'center', padding: '40px 0' }} className="animate-pulse">placing it on your list…</p>
+            <p style={{ ...serif, fontSize: '20px', color: '#c9b99a', textAlign: 'center', padding: '40px 0' }} className="animate-pulse">placing it on your list…</p>
           )}
 
           {step === 'done' && result && (

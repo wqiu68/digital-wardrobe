@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, getCurrentUser } from './supabase';
 import { inferGenre } from './ranking';
 
 const MAX_IMAGE_BYTES = 80000;
@@ -48,7 +48,7 @@ function fromDb(row) {
 }
 
 export async function getBooks() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from('books')
     .select('*')
@@ -72,7 +72,7 @@ export async function getFriendBooks(userId) {
 }
 
 export async function addBook(book) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   // New books prepend: find min sort_order and go one lower
   const { data: existing } = await supabase
@@ -90,6 +90,32 @@ export async function addBook(book) {
     .single();
   if (error) throw error;
   return fromDb(data);
+}
+
+// Bulk add (Goodreads import). Keeps the given order at the top of the shelf.
+export async function addBooks(books) {
+  const user = await getCurrentUser();
+  const { data: existing } = await supabase
+    .from('books')
+    .select('sort_order')
+    .eq('user_id', user.id)
+    .order('sort_order', { ascending: true })
+    .limit(1);
+  const minSort = existing?.[0]?.sort_order ?? 0;
+  const now = Date.now();
+
+  const rows = books.map((b, i) => ({
+    ...toDb(b),
+    user_id: user.id,
+    sort_order: minSort - books.length + i,
+    added_at: b.addedAt || now,
+    sentiment: b.sentiment || null,
+    rank_order: b.sentiment ? b.rankOrder : null,
+  }));
+  for (let i = 0; i < rows.length; i += 200) {
+    const { error } = await supabase.from('books').insert(rows.slice(i, i + 200));
+    if (error) throw error;
+  }
 }
 
 export async function updateBook(id, patch) {

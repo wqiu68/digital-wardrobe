@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, getCurrentUser } from './supabase';
 
 // Ensure the current user has a profile row (safe to call multiple times)
 export async function ensureProfile(user, displayName) {
@@ -12,9 +12,23 @@ export async function ensureProfile(user, displayName) {
   );
 }
 
+// My own profile row (name friends see, email)
+export async function getMyProfile() {
+  const user = await getCurrentUser();
+  const { data, error } = await supabase.from('profiles').select('id, display_name, email').eq('id', user.id).maybeSingle();
+  if (error) throw error;
+  return { displayName: data?.display_name || '', email: data?.email || user.email, joinedAt: user.created_at };
+}
+
+export async function updateDisplayName(name) {
+  const user = await getCurrentUser();
+  const { error } = await supabase.from('profiles').update({ display_name: name.trim() }).eq('id', user.id);
+  if (error) throw error;
+}
+
 // Find a user by email and send them a friend request
 export async function sendFriendRequest(email) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
@@ -51,7 +65,7 @@ export async function sendFriendRequest(email) {
 
 // Incoming pending requests (someone sent you a request)
 export async function getPendingRequests() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from('friendships')
     .select('id, requester_id, created_at, requester:profiles!friendships_requester_id_fkey(display_name, email)')
@@ -69,7 +83,7 @@ export async function getPendingRequests() {
 
 // Outgoing pending requests (you sent, awaiting response)
 export async function getOutgoingRequests() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from('friendships')
     .select('id, addressee_id, created_at, addressee:profiles!friendships_addressee_id_fkey(display_name, email)')
@@ -87,7 +101,7 @@ export async function getOutgoingRequests() {
 
 // Accepted friends
 export async function getFriends() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from('friendships')
     .select(`
@@ -127,7 +141,7 @@ export async function removeFriend(friendshipId) {
 
 // Fetch recent items from all accepted friends (for the feed)
 export async function getFriendsFeed() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   const { data: friendships } = await supabase
     .from('friendships')

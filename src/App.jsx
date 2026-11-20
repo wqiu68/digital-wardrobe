@@ -30,7 +30,7 @@ export default function App() {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: '#FAF8F5', fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '20px', color: '#c9b99a', fontStyle: 'italic' }}
+        style={{ backgroundColor: '#FAF8F5', fontFamily: "'Open Sans', system-ui, sans-serif", fontSize: '20px', color: '#c9b99a' }}
       >
         loading…
       </div>

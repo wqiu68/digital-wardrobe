@@ -1,0 +1,3 @@
+# Supabase CLI config. Used by the GitHub Action that applies database
+# migrations and deploys edge functions; nothing here runs locally.
+project_id = "homey"

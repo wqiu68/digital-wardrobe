@@ -1,4 +1,4 @@
-const sans = { fontFamily: "'Inter', sans-serif" };
+const sans = { fontFamily: "'Open Sans', sans-serif" };
 
 const btnBase = { ...sans, fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', width: '100%', padding: '7px 4px', marginTop: '8px' };
 

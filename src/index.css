@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap');
 
 /* Hide scrollbars but keep scrolling */
 .scrollbar-hide {
@@ -9,3 +9,18 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* ─── Feel like an app on phones ─── */
+html, body {
+  background-color: #FAF8F5;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+/* iPhone zooms the page when you tap a field with text under 16px */
+@media (max-width: 640px) {
+  input, select, textarea { font-size: 16px !important; }
+}
+/* Keep the bottom of the page clear of the iPhone home bar */
+body { padding-bottom: env(safe-area-inset-bottom); }
+
+body { font-family: 'Open Sans', system-ui, sans-serif; }

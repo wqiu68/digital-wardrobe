@@ -1,7 +1,7 @@
 // Library furniture: walnut bookcase, brass nameplate, wooden shelves, cloth-bound books.
 
-const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
-const sans  = { fontFamily: "'Inter', sans-serif" };
+const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
+const sans  = { fontFamily: "'Open Sans', sans-serif" };
 
 export const BOOKCASE_GRID = 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-x-4 gap-y-7';
 
@@ -30,7 +30,7 @@ function Nameplate({ title, count }) {
           borderRadius: '2px',
         }}
       >
-        <span style={{ ...serif, fontSize: '15px', fontStyle: 'italic', color: '#3a2a12', letterSpacing: '0.02em' }}>{title}</span>
+        <span style={{ ...serif, fontSize: '15px', color: '#3a2a12', letterSpacing: '0.02em' }}>{title}</span>
         {count != null && (
           <span style={{ ...sans, fontSize: '9px', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#5a4320', marginLeft: '10px' }}>
             {count} {count === 1 ? 'vol.' : 'vols.'}
@@ -77,7 +77,7 @@ export function ClothBinding({ book, size = 14 }) {
   return (
     <div className="w-full h-full flex flex-col items-center justify-between py-4 px-2 text-center" style={{ backgroundColor: color, backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 3px)' }}>
       <div className="w-3/4 h-px" style={{ backgroundColor: 'rgba(226,189,107,0.6)' }} />
-      <p style={{ ...serif, fontSize: `${size}px`, fontStyle: 'italic', color: '#e8c97e', lineHeight: 1.15 }} className="line-clamp-5">{book.title}</p>
+      <p style={{ ...serif, fontSize: `${size}px`, color: '#e8c97e', lineHeight: 1.15 }} className="line-clamp-5">{book.title}</p>
       <div className="flex flex-col items-center gap-2 w-full">
         {book.author && <p style={{ ...sans, fontSize: '8px', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(232,201,126,0.75)' }} className="line-clamp-2">{book.author}</p>}
         <div className="w-3/4 h-px" style={{ backgroundColor: 'rgba(226,189,107,0.6)' }} />
@@ -94,7 +94,7 @@ function CheckoutSlip({ name }) {
       style={{ backgroundColor: '#f4ecd8', boxShadow: '0 1px 3px rgba(0,0,0,0.4)', maxWidth: '70%', transform: 'rotate(2deg)' }}
     >
       <p style={{ ...sans, fontSize: '7px', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#9a3b2f', fontWeight: 600 }}>Out</p>
-      <p style={{ ...serif, fontSize: '11px', fontStyle: 'italic', color: '#3a2d22', lineHeight: 1.1 }} className="truncate">{name}</p>
+      <p style={{ ...serif, fontSize: '11px', color: '#3a2d22', lineHeight: 1.1 }} className="truncate">{name}</p>
     </div>
   );
 }

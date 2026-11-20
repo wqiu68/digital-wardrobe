@@ -5,8 +5,8 @@ import { sortRanked } from '../utils/ranking';
 import RankedList from './RankedList';
 import RankFlow from './RankFlow';
 
-const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
-const sans  = { fontFamily: "'Inter', sans-serif" };
+const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
+const sans  = { fontFamily: "'Open Sans', sans-serif" };
 
 export default function RankingsTab() {
   const [books, setBooks] = useState([]);
@@ -44,7 +44,7 @@ export default function RankingsTab() {
     <div className="max-w-3xl">
       <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
         <div>
-          <h2 style={{ ...serif, fontSize: '30px', fontWeight: 300, fontStyle: 'italic', color: '#1a1713', lineHeight: 1 }}>Your Rankings</h2>
+          <h2 style={{ ...serif, fontSize: '30px', fontWeight: 300, color: '#1a1713', lineHeight: 1 }}>Your Rankings</h2>
           <p style={{ ...sans, fontSize: '12px', color: '#a09890', marginTop: '8px' }}>
             {rankedCount
               ? `${rankedCount} ${rankedCount === 1 ? 'book' : 'books'} ranked against each other`
@@ -63,7 +63,7 @@ export default function RankingsTab() {
       {error && <p style={{ ...sans, fontSize: '12px', color: '#c0392b', marginBottom: '16px' }}>{error}</p>}
 
       {loading ? (
-        <p style={{ ...serif, fontSize: '20px', color: '#c9b99a', fontStyle: 'italic' }}>loading your rankings…</p>
+        <p style={{ ...serif, fontSize: '20px', color: '#c9b99a' }}>loading your rankings…</p>
       ) : (
         <RankedList
           books={books}

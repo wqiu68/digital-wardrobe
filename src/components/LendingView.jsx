@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { respondToLoan, withdrawLoan, getMyBorrowing } from '../utils/loans';
 
-const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
-const sans  = { fontFamily: "'Inter', sans-serif" };
+const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
+const sans  = { fontFamily: "'Open Sans', sans-serif" };
 
 const primaryBtn = { ...sans, fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', backgroundColor: '#1a1713', color: '#FAF8F5' };
 const ghostBtn   = { ...sans, fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#b0a89e', border: '1px solid #e8e3de' };
@@ -16,7 +16,7 @@ function Section({ title, count, children }) {
   return (
     <div className="mb-12">
       <div className="flex items-center gap-4 mb-4">
-        <h3 style={{ ...serif, fontSize: '18px', fontWeight: 400, color: '#1a1713', fontStyle: 'italic' }}>{title}</h3>
+        <h3 style={{ ...serif, fontSize: '18px', fontWeight: 400, color: '#1a1713' }}>{title}</h3>
         {count > 0 && <span style={{ ...sans, fontSize: '11px', color: '#b0a89e' }}>{count}</span>}
         <div className="flex-1 h-px" style={{ backgroundColor: '#e8e3de' }} />
       </div>
@@ -47,7 +47,7 @@ function LoanRow({ loan, line, children }) {
 }
 
 function Empty({ children }) {
-  return <p style={{ ...serif, fontSize: '16px', color: '#c9b99a', fontStyle: 'italic', padding: '12px 0' }}>{children}</p>;
+  return <p style={{ ...serif, fontSize: '16px', color: '#c9b99a', padding: '12px 0' }}>{children}</p>;
 }
 
 export default function LendingView({ lending, onLendingChange }) {

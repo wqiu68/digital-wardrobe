@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, getCurrentUser } from './supabase';
 
 const MAX_IMAGE_BYTES = 80000;
 
@@ -36,7 +36,7 @@ function fromDb(row) {
 }
 
 export async function getItems() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   const { data, error } = await supabase
     .from('wardrobe_items')
     .select('*')
@@ -48,7 +48,7 @@ export async function getItems() {
 }
 
 export async function addItem(item) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   // New items prepend: find min sort_order and go one lower
   const { data: existing } = await supabase
@@ -87,7 +87,7 @@ export async function deleteItem(id) {
 }
 
 export async function migrateItems(localItems) {
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const authUser = await getCurrentUser();
   const validItems = localItems.filter(item => item && item.name);
   if (!validItems.length) return;
   const rows = validItems.map((item, index) => ({

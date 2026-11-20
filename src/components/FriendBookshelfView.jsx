@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import posthog from 'posthog-js';
-import { supabase } from '../utils/supabase';
+import { getCurrentUser } from '../utils/supabase';
 import { getFriendBooks } from '../utils/books';
 import { getLoansForFriend, requestBorrow, withdrawLoan } from '../utils/loans';
 import { Stars } from './BookModal';
 import BorrowButton from './BorrowButton';
 import { Bookcase, ShelvedBook, BOOKCASE_GRID, ON_WOOD } from './BookcaseDecor';
 
-const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
-const sans  = { fontFamily: "'Inter', sans-serif" };
+const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
+const sans  = { fontFamily: "'Open Sans', sans-serif" };
 
 export default function FriendBookshelfView({ friend }) {
   const [books, setBooks] = useState([]);
@@ -27,7 +27,7 @@ export default function FriendBookshelfView({ friend }) {
     Promise.all([
       getFriendBooks(friend.userId).then(setBooks),
       loadLoans(),
-      supabase.auth.getUser().then(({ data }) => setMyId(data.user?.id)),
+      getCurrentUser().then(u => setMyId(u?.id)),
     ])
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
@@ -48,6 +48,8 @@ export default function FriendBookshelfView({ friend }) {
 
   const q = search.toLowerCase();
   const filtered = books.filter(b => !q || b.title.toLowerCase().includes(q) || b.author?.toLowerCase().includes(q));
+  const library = filtered.filter(b => b.status !== 'want');
+  const wants = filtered.filter(b => b.status === 'want');
   const name = friend.displayName || 'They';
 
   return (
@@ -70,15 +72,17 @@ export default function FriendBookshelfView({ friend }) {
       {error && <p style={{ ...sans, fontSize: '12px', color: '#c0392b', marginBottom: '16px' }}>{error}</p>}
 
       {loading ? (
-        <p style={{ ...serif, fontSize: '20px', color: '#c9b99a', fontStyle: 'italic' }}>loading bookshelf…</p>
+        <p style={{ ...serif, fontSize: '20px', color: '#c9b99a' }}>loading bookshelf…</p>
       ) : filtered.length === 0 ? (
-        <p style={{ ...serif, fontSize: '20px', color: '#c9b99a', fontStyle: 'italic' }}>
+        <p style={{ ...serif, fontSize: '20px', color: '#c9b99a' }}>
           {books.length === 0 ? `${name} hasn't added any books yet.` : 'No results.'}
         </p>
       ) : (
-        <Bookcase title={`${friend.displayName || 'Their'}'s Library`} count={books.length}>
+        <>
+        {library.length > 0 && (
+        <Bookcase title={`${friend.displayName || 'Their'}'s Library`} count={library.length}>
           <div className={BOOKCASE_GRID}>
-            {filtered.map(book => {
+            {library.map(book => {
               const bookLoans = loans.filter(l => l.bookId === book.id);
               const checkedOut = bookLoans.some(l => l.status === 'lent' && l.borrowerId !== myId);
               return (
@@ -105,6 +109,22 @@ export default function FriendBookshelfView({ friend }) {
             })}
           </div>
         </Bookcase>
+        )}
+        {wants.length > 0 && (
+          <Bookcase title="Wants to Read" count={wants.length}>
+            <div className={BOOKCASE_GRID}>
+              {wants.map(book => (
+                <div key={book.id} className="flex flex-col">
+                  <ShelvedBook book={book}>
+                    <p style={{ ...serif, fontSize: '15px', color: ON_WOOD.title, lineHeight: 1.15 }} className="line-clamp-2">{book.title}</p>
+                    {book.author && <p style={{ ...sans, fontSize: '10px', color: ON_WOOD.sub, marginTop: '3px', letterSpacing: '0.04em' }} className="truncate">{book.author}</p>}
+                  </ShelvedBook>
+                </div>
+              ))}
+            </div>
+          </Bookcase>
+        )}
+        </>
       )}
     </div>
   );

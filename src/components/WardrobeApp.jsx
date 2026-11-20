@@ -5,23 +5,42 @@ import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@d
 import { CSS } from '@dnd-kit/utilities';
 import posthog from 'posthog-js';
 import { getItems, addItem, updateItem, deleteItem, reorderItems, migrateItems } from '../utils/wardrobe';
-import { ensureProfile } from '../utils/friends';
+import { ensureProfile, getMyProfile } from '../utils/friends';
 import { getMyLending, lentToMap } from '../utils/loans';
 import LendingView from './LendingView';
-import { LentTag } from './BorrowButton';
 import ItemModal, { CATEGORIES } from './ItemModal';
 import FriendsTab from './FriendsTab';
 import BookshelfTab from './BookshelfTab';
 import RankingsTab from './RankingsTab';
+import HomeView from './HomeView';
+import ProfileView, { Avatar } from './ProfileView';
 
-const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
-const sans  = { fontFamily: "'Inter', sans-serif" };
+const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
+const sans  = { fontFamily: "'Open Sans', sans-serif" };
+
+function NavTab({ tab, active, badge, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="relative shrink-0 h-full flex items-center gap-1.5 px-3 py-3 md:py-0 transition-colors hover:text-black"
+      style={{ ...sans, fontSize: '13px', color: active ? '#1a1713' : '#a09890', fontWeight: active ? 500 : 400 }}
+    >
+      {tab.label}
+      {badge > 0 && (
+        <span className="min-w-4 h-4 px-1 flex items-center justify-center rounded-full text-white" style={{ fontSize: '9px', backgroundColor: '#c9b99a' }}>
+          {badge}
+        </span>
+      )}
+      {active && <span className="absolute left-3 right-3 bottom-0 h-px" style={{ backgroundColor: '#1a1713' }} />}
+    </button>
+  );
+}
 
 const ALL = { id: 'ALL', label: 'All' };
 
 // ─── Sortable item card (closet) ──────────────────────────────────────────────
 
-function SortableItemCard({ item, lentTo, onEdit, onDelete }) {
+function SortableItemCard({ item, onEdit, onDelete }) {
   const cat = CATEGORIES.find(c => c.id === item.category);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
 
@@ -41,7 +60,6 @@ function SortableItemCard({ item, lentTo, onEdit, onDelete }) {
           ? <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
           : <div className="w-full h-full flex items-center justify-center"><span className="text-4xl opacity-15">{cat?.emoji}</span></div>
         }
-        <LentTag name={lentTo} />
         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" style={{ background: 'rgba(26,23,19,0.04)' }} />
         <div
           {...attributes} {...listeners}
@@ -95,19 +113,19 @@ function SortableItemCard({ item, lentTo, onEdit, onDelete }) {
   );
 }
 
-function CategorySection({ category, items, lentTo, onEdit, onDelete }) {
+function CategorySection({ category, items, onEdit, onDelete }) {
   const cat = CATEGORIES.find(c => c.id === category);
   if (!items.length) return null;
   return (
     <div className="mb-14">
       <div className="flex items-center gap-4 mb-6">
-        <h2 style={{ ...serif, fontSize: '18px', fontWeight: 400, color: '#1a1713', fontStyle: 'italic', letterSpacing: '-0.01em' }}>{cat?.label}</h2>
+        <h2 style={{ ...serif, fontSize: '18px', fontWeight: 400, color: '#1a1713', letterSpacing: '-0.01em' }}>{cat?.label}</h2>
         <span style={{ ...sans, fontSize: '11px', color: '#b0a89e' }}>{items.length} {items.length === 1 ? 'piece' : 'pieces'}</span>
         <div className="flex-1 h-px" style={{ backgroundColor: '#e8e3de' }} />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-4 gap-y-8">
         {items.map(item => (
-          <SortableItemCard key={item.id} item={item} lentTo={lentTo[item.id]} onEdit={onEdit} onDelete={onDelete} />
+          <SortableItemCard key={item.id} item={item} onEdit={onEdit} onDelete={onDelete} />
         ))}
       </div>
     </div>
@@ -163,9 +181,10 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [loadingItems, setLoadingItems] = useState(true);
-  const [view, setView] = useState('closet'); // 'closet' | 'bookshelf' | 'rankings' | 'lending' | 'friends'
+  const [view, setView] = useState('home'); // 'home' | 'profile' | 'friends' | 'closet' | 'closet-friends' | 'bookshelf' | 'rankings' | 'lending' | 'book-friends'
   const [pendingCount, setPendingCount] = useState(0);
   const [lending, setLending] = useState([]);
+  const [name, setName] = useState(displayName); // the name friends see
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -203,7 +222,10 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
   }
 
   useEffect(() => {
-    ensureProfile(user, displayName).catch(console.error);
+    ensureProfile(user, displayName)
+      .then(getMyProfile)
+      .then(p => p.displayName && setName(p.displayName))
+      .catch(console.error);
     loadItems();
     loadLending();
   }, []);
@@ -280,108 +302,51 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
   const lentTo = lentToMap(lending);
   const loanRequestCount = lending.filter(l => l.status === 'requested').length;
 
-  const navTabs = [
-    { id: 'closet',    label: 'My Closet' },
-    { id: 'bookshelf', label: 'Bookshelf' },
-    { id: 'rankings',  label: 'Rankings'  },
-    { id: 'lending',   label: 'Lending'   },
-    { id: 'friends', label: 'Friends'   },
-  ];
+  // The closet and the bookshelf are separate spaces: each only shows its own tabs.
+  // Home, profile and the all-friends page show none.
+  const SPACES = {
+    closet: [
+      { id: 'closet',         label: 'My Closet' },
+      { id: 'closet-friends', label: 'Friends'   },
+    ],
+    books: [
+      { id: 'bookshelf',    label: 'My Shelf' },
+      { id: 'rankings',     label: 'Rankings' },
+      { id: 'lending',      label: 'Lending'  },
+      { id: 'book-friends', label: 'Friends'  },
+    ],
+  };
+  const navTabs = Object.values(SPACES).find(tabs => tabs.some(t => t.id === view)) || [];
+
+  const badgeFor = id => id.endsWith('friends') ? pendingCount : id === 'lending' ? loanRequestCount : 0;
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#FAF8F5', fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#FAF8F5', fontFamily: "'Open Sans', sans-serif" }}>
 
-      {/* Header */}
+      {/* Header — logo, sections, account. One row on desktop. */}
       <header className="sticky top-0 z-20" style={{ backgroundColor: '#FAF8F5', borderBottom: '1px solid #e8e3de' }}>
-
-        {/* Top row */}
-        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between gap-6">
-          <h1 style={{ ...serif, fontSize: '20px', fontWeight: 400, color: '#1a1713', fontStyle: 'italic', letterSpacing: '-0.01em' }}>
-            homey
-          </h1>
-
-          {view === 'closet' && (
-            <div className="flex-1 max-w-sm hidden sm:block">
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search pieces…"
-                style={{ ...sans, borderColor: '#d4ccc4', fontSize: '13px', color: '#1a1713' }}
-                className="w-full bg-transparent border-b py-1.5 focus:outline-none transition-colors placeholder:text-black/20"
-              />
-            </div>
-          )}
-
-          <div className="flex items-center gap-5">
-            <span style={{ ...sans, fontSize: '11px', color: '#b0a89e' }} className="hidden sm:block">{displayName}</span>
-            {view === 'closet' && (
-              <button
-                onClick={() => setModal({ mode: 'add' })}
-                style={{ ...sans, fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', backgroundColor: '#1a1713', color: '#FAF8F5' }}
-                className="px-5 py-2.5 hover:opacity-80 transition-opacity"
-              >
-                + Add
-              </button>
-            )}
-            <button
-              onClick={onLogout}
-              style={{ ...sans, fontSize: '11px', color: '#b0a89e', letterSpacing: '0.05em' }}
-              className="hover:opacity-60 transition-opacity"
-            >
-              Sign out
-            </button>
-          </div>
+        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center gap-8">
+          <button onClick={() => setView('home')} className="hover:opacity-70 transition-opacity">
+            <h1 style={{ ...serif, fontSize: '22px', fontWeight: 400, color: '#1a1713', letterSpacing: '-0.01em' }}>
+              homey
+            </h1>
+          </button>
+          <nav className={`${navTabs.length ? 'hidden md:flex' : 'hidden'} items-center gap-1 h-full`}>
+            {navTabs.map(t => <NavTab key={t.id} tab={t} active={view === t.id} badge={badgeFor(t.id)} onClick={() => setView(t.id)} />)}
+          </nav>
+          <button
+            onClick={() => setView('profile')}
+            title="Your profile"
+            className="ml-auto rounded-full transition-shadow hover:shadow-[0_0_0_3px_#ece4d8]"
+            style={view === 'profile' ? { boxShadow: '0 0 0 2px #1a1713' } : undefined}
+          >
+            <Avatar name={name} size={32} />
+          </button>
         </div>
-
-        {/* Mobile search */}
-        {view === 'closet' && (
-          <div className="sm:hidden px-6 pb-3">
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search…"
-              style={{ ...sans, borderColor: '#d4ccc4', fontSize: '13px' }}
-              className="w-full bg-transparent border-b py-1.5 focus:outline-none transition-colors placeholder:text-black/20"
-            />
-          </div>
-        )}
-
-        {/* Nav tabs row */}
-        <div className="max-w-7xl mx-auto px-6 flex gap-0 overflow-x-auto scrollbar-hide" style={{ borderTop: '1px solid #f0ebe3' }}>
-          {navTabs.map(t => {
-            const isActive = view === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setView(t.id)}
-                className="relative shrink-0 px-5 py-3 transition-all"
-                style={{
-                  ...sans,
-                  fontSize: '11px',
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase',
-                  color: isActive ? '#1a1713' : '#b0a89e',
-                  borderBottom: isActive ? '1px solid #1a1713' : '1px solid transparent',
-                  marginBottom: '-1px',
-                  background: 'none',
-                }}
-              >
-                {t.label}
-                {(() => {
-                  const badge = t.id === 'friends' ? pendingCount : t.id === 'lending' ? loanRequestCount : 0;
-                  return badge > 0 && (
-                    <span
-                      className="absolute top-2 -right-0.5 w-4 h-4 flex items-center justify-center rounded-full text-white"
-                      style={{ ...sans, fontSize: '9px', backgroundColor: '#c9b99a' }}
-                    >
-                      {badge}
-                    </span>
-                  );
-                })()}
-              </button>
-            );
-          })}
-        </div>
+        {/* Mobile: sections get their own scrollable row */}
+        <nav className={`${navTabs.length ? 'flex md:hidden' : 'hidden'} px-3 overflow-x-auto scrollbar-hide`} style={{ borderTop: '1px solid #f0ebe3' }}>
+          {navTabs.map(t => <NavTab key={t.id} tab={t} active={view === t.id} badge={badgeFor(t.id)} onClick={() => setView(t.id)} />)}
+        </nav>
       </header>
 
       {/* Error */}
@@ -392,76 +357,81 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
         </div>
       )}
 
-      {/* Category & occasion filters — closet only */}
-      {view === 'closet' && (
-        <>
-          <div style={{ backgroundColor: '#FAF8F5', borderBottom: '1px solid #e8e3de' }}>
-            <div className="max-w-7xl mx-auto px-6">
-              <div className="flex gap-0 overflow-x-auto scrollbar-hide">
-                {tabs.map(cat => {
-                  const count = cat.id === 'ALL' ? items.length : (counts[cat.id] || 0);
-                  const isActive = activeCategory === cat.id;
-                  return (
-                    <button
-                      key={cat.id}
-                      onClick={() => setActiveCategory(cat.id)}
-                      className="shrink-0 px-4 py-4 transition-all"
-                      style={{
-                        ...sans,
-                        fontSize: '11px',
-                        letterSpacing: '0.12em',
-                        textTransform: 'uppercase',
-                        color: isActive ? '#1a1713' : '#b0a89e',
-                        borderTop: 'none', borderLeft: 'none', borderRight: 'none',
-                        borderBottom: isActive ? '1px solid #1a1713' : '1px solid transparent',
-                        marginBottom: '-1px',
-                        background: 'none',
-                      }}
-                    >
-                      {cat.label} {count > 0 && <span style={{ opacity: 0.5, fontWeight: 300 }}>{count}</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ backgroundColor: '#FAF8F5', borderBottom: '1px solid #f0ebe3' }}>
-            <div className="max-w-7xl mx-auto px-6 py-2 flex items-center gap-2 flex-wrap">
-              <span style={{ ...sans, fontSize: '10px', color: '#c9b99a', letterSpacing: '0.2em', textTransform: 'uppercase', marginRight: '4px' }}>
-                Occasion
-              </span>
-              {[
-                { id: 'ALL',      label: 'All'          },
-                { id: 'everyday', label: 'Everyday'     },
-                { id: 'work',     label: 'Work & Formal'},
-                { id: 'athletic', label: 'Athletic'     },
-              ].map(o => (
-                <button
-                  key={o.id}
-                  onClick={() => setActiveOccasion(o.id)}
-                  style={{
-                    ...sans,
-                    fontSize: '10px',
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                    padding: '5px 12px',
-                    backgroundColor: activeOccasion === o.id ? '#1a1713' : 'transparent',
-                    color: activeOccasion === o.id ? '#FAF8F5' : '#a09890',
-                    border: `1px solid ${activeOccasion === o.id ? '#1a1713' : '#e0d9d2'}`,
-                  }}
-                  className="transition-all hover:border-black/30"
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
       {/* Main content */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-10">
+
+        {/* ── Closet toolbar: categories left, search / occasion / add right ── */}
+        {view === 'closet' && (
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 mb-10">
+            <div className="flex gap-1 overflow-x-auto scrollbar-hide min-w-0 w-full lg:w-auto">
+              {tabs.map(cat => {
+                const count = cat.id === 'ALL' ? items.length : (counts[cat.id] || 0);
+                const isActive = activeCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setActiveCategory(cat.id)}
+                    className="shrink-0 rounded-full px-3.5 py-1.5 transition-colors"
+                    style={{
+                      ...sans, fontSize: '12px',
+                      backgroundColor: isActive ? '#1a1713' : 'transparent',
+                      color: isActive ? '#FAF8F5' : '#8a8178',
+                    }}
+                  >
+                    {cat.label}{count > 0 && <span style={{ opacity: 0.5, marginLeft: 5 }}>{count}</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-3 w-full lg:w-auto">
+              <label className="relative flex-1 min-w-0 lg:flex-none">
+                <svg className="absolute left-0 top-1/2 -translate-y-1/2" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b0a89e" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search"
+                  style={{ ...sans, borderColor: '#e0d9d2', fontSize: '12px', color: '#1a1713' }}
+                  className="w-full lg:w-40 bg-transparent border-b pl-5 py-1.5 focus:outline-none focus:border-black/40 transition-colors placeholder:text-black/25"
+                />
+              </label>
+              <select
+                value={activeOccasion}
+                onChange={e => setActiveOccasion(e.target.value)}
+                aria-label="Occasion"
+                style={{ ...sans, fontSize: '12px', color: activeOccasion === 'ALL' ? '#8a8178' : '#1a1713', borderColor: '#e0d9d2' }}
+                className="shrink-0 bg-transparent border-b py-1.5 pr-1 focus:outline-none cursor-pointer"
+              >
+                <option value="ALL">Any occasion</option>
+                <option value="everyday">Everyday</option>
+                <option value="work">Work &amp; Formal</option>
+                <option value="athletic">Athletic</option>
+              </select>
+              <button
+                onClick={() => setModal({ mode: 'add' })}
+                style={{ ...sans, fontSize: '12px', backgroundColor: '#1a1713', color: '#FAF8F5' }}
+                className="shrink-0 rounded-full px-4 py-1.5 hover:opacity-80 transition-opacity"
+              >
+                + Add
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Home ── */}
+        {view === 'home' && (
+          <HomeView
+            displayName={name}
+            items={items}
+            loadingItems={loadingItems}
+            lendingRequests={loanRequestCount}
+            friendRequests={pendingCount}
+            onGo={setView}
+          />
+        )}
+
+        {/* ── Profile ── */}
+        {view === 'profile' && <ProfileView fallbackName={name} items={items} lending={lending} onNameChange={setName} onLogout={onLogout} />}
 
         {/* ── Bookshelf ── */}
         {view === 'bookshelf' && <BookshelfTab lentTo={lentTo} />}
@@ -473,19 +443,23 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
         {view === 'lending' && <LendingView lending={lending} onLendingChange={loadLending} />}
 
         {/* ── Friends ── */}
-        {view === 'friends' && (
-          <FriendsTab onPendingCountChange={setPendingCount} />
+        {['friends', 'closet-friends', 'book-friends'].includes(view) && (
+          <FriendsTab
+            key={view}
+            scope={{ 'closet-friends': 'closet', 'book-friends': 'books' }[view]}
+            onPendingCountChange={setPendingCount}
+          />
         )}
 
         {/* ── My Closet ── */}
         {view === 'closet' && (
           loadingItems ? (
             <div className="flex items-center justify-center py-36">
-              <p style={{ ...serif, fontSize: '20px', fontWeight: 300, color: '#c9b99a', fontStyle: 'italic' }}>loading your wardrobe…</p>
+              <p style={{ ...serif, fontSize: '20px', fontWeight: 300, color: '#c9b99a' }}>loading your wardrobe…</p>
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-36 text-center">
-              <p style={{ ...serif, fontSize: '28px', fontWeight: 300, color: '#c9b99a', fontStyle: 'italic', marginBottom: '24px' }}>
+              <p style={{ ...serif, fontSize: '28px', fontWeight: 300, color: '#c9b99a', marginBottom: '24px' }}>
                 {search ? 'No results.' : items.length === 0 ? 'Your wardrobe is empty.' : 'Nothing in this category.'}
               </p>
               {items.length === 0 && (
@@ -507,7 +481,6 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
                       <CategorySection
                         category={category}
                         items={catItems}
-                        lentTo={lentTo}
                         onEdit={i => setModal({ mode: 'edit', item: i })}
                         onDelete={handleDelete}
                       />
@@ -525,7 +498,6 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
                       <motion.div key={item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                         <SortableItemCard
                           item={item}
-                          lentTo={lentTo[item.id]}
                           onEdit={i => setModal({ mode: 'edit', item: i })}
                           onDelete={handleDelete}
                         />

@@ -156,8 +156,8 @@ export default function ItemModal({ item, onSave, onClose }) {
 
   const cat = CATEGORIES.find(c => c.id === form.category);
 
-  const serif = { fontFamily: "'Cormorant Garamond', Georgia, serif" };
-  const sans  = { fontFamily: "'Inter', sans-serif" };
+  const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
+  const sans  = { fontFamily: "'Open Sans', sans-serif" };
   const inputCls = "w-full bg-transparent border-0 border-b py-2 text-sm focus:outline-none transition-colors placeholder:text-black/20";
   const labelCls = { ...sans, fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#a09890', display: 'block', marginBottom: '8px' };
 
@@ -171,7 +171,7 @@ export default function ItemModal({ item, onSave, onClose }) {
 
         {/* Header */}
         <div className="flex items-center justify-between px-7 py-5" style={{ borderBottom: '1px solid #e8e3de' }}>
-          <h2 style={{ ...serif, fontSize: '20px', fontWeight: 300, color: '#1a1713', fontStyle: 'italic' }}>
+          <h2 style={{ ...serif, fontSize: '20px', fontWeight: 300, color: '#1a1713' }}>
             {item ? 'edit piece' : 'add new piece'}
           </h2>
           <button onClick={onClose} style={{ ...sans, color: '#b0a89e', fontSize: '16px' }} className="hover:opacity-60 transition-opacity leading-none">✕</button>
