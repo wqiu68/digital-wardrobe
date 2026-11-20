@@ -14,6 +14,7 @@ import BookshelfTab from './BookshelfTab';
 import RankingsTab from './RankingsTab';
 import HomeView from './HomeView';
 import ProfileView, { Avatar } from './ProfileView';
+import AssistantPanel from './AssistantPanel';
 
 const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
 const sans  = { fontFamily: "'Open Sans', sans-serif" };
@@ -183,6 +184,8 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
   const [loadingItems, setLoadingItems] = useState(true);
   const [view, setView] = useState('home'); // 'home' | 'profile' | 'friends' | 'closet' | 'closet-friends' | 'bookshelf' | 'rankings' | 'lending' | 'book-friends'
   const [pendingCount, setPendingCount] = useState(0);
+  // Bumped when the assistant changes books, so the shelf and rankings reload
+  const [booksVersion, setBooksVersion] = useState(0);
   const [lending, setLending] = useState([]);
   const [name, setName] = useState(displayName); // the name friends see
 
@@ -361,7 +364,7 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
       )}
 
       {/* Main content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-10">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-6 pt-10 pb-24">
 
         {/* ── Closet toolbar: categories left, search / occasion / add right ── */}
         {view === 'closet' && (
@@ -437,10 +440,10 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
         {view === 'profile' && <ProfileView fallbackName={name} items={items} lending={lending} onNameChange={setName} onLogout={onLogout} />}
 
         {/* ── Bookshelf ── */}
-        {view === 'bookshelf' && <BookshelfTab lentTo={lentTo} />}
+        {view === 'bookshelf' && <BookshelfTab key={booksVersion} lentTo={lentTo} />}
 
         {/* ── Rankings ── */}
-        {view === 'rankings' && <RankingsTab />}
+        {view === 'rankings' && <RankingsTab key={booksVersion} />}
 
         {/* ── Lending ── */}
         {view === 'lending' && <LendingView lending={lending} onLendingChange={loadLending} />}
@@ -513,6 +516,14 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
           )
         )}
       </main>
+
+      <AssistantPanel
+        space={SPACES.closet.some(t => t.id === view) ? 'closet' : SPACES.books.some(t => t.id === view) ? 'books' : 'any'}
+        onChanged={changed => {
+          if (changed.includes('closet')) loadItems();
+          if (changed.includes('books')) setBooksVersion(v => v + 1);
+        }}
+      />
 
       {/* Modal */}
       <AnimatePresence>

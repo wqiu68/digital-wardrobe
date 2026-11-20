@@ -355,4 +355,4 @@ export default function ItemModal({ item, onSave, onClose }) {
   );
 }
 
-export { CATEGORIES };
+export { CATEGORIES, compressImage };
