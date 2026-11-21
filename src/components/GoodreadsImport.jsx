@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import posthog from 'posthog-js';
-import { addBooks } from '../utils/books';
+import { addBooks, updateBook } from '../utils/books';
 import { parseGoodreadsExport, enrichFromOpenLibrary, seedRankings, sameBookKey } from '../utils/goodreads';
 import { isRanked } from '../utils/ranking';
 
@@ -22,7 +22,7 @@ export default function GoodreadsImport({ existingBooks, onClose, onImported }) 
   const [rank, setRank] = useState(true);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
-  const [added, setAdded] = useState(0);
+  const [added, setAdded] = useState({ books: 0, years: 0 });
 
   const have = new Set(existingBooks.flatMap(b => [sameBookKey(b), b.isbn].filter(Boolean)));
   const isNew = b => !have.has(sameBookKey(b)) && !(b.isbn && have.has(b.isbn));
@@ -30,6 +30,11 @@ export default function GoodreadsImport({ existingBooks, onClose, onImported }) 
   const count = s => fresh.filter(b => b.status === s).length;
   const rated = fresh.filter(b => b.status === 'read' && b.rating).length;
   const alreadyRanked = existingBooks.some(isRanked);
+  // Books already on the shelf that Goodreads knows the read year for
+  const yearFixes = parsed.filter(b => !isNew(b) && b.status === 'read' && b.readYear).flatMap(b => {
+    const mine = existingBooks.find(e => e.status === 'read' && !e.readYear && (sameBookKey(e) === sameBookKey(b) || (b.isbn && e.isbn === b.isbn)));
+    return mine ? [{ ...mine, readYear: b.readYear }] : [];
+  });
 
   async function readFile(file) {
     setError('');
@@ -52,9 +57,13 @@ export default function GoodreadsImport({ existingBooks, onClose, onImported }) 
       // Only seed rankings into an empty ranking list, so it never scrambles one you've built
       if (rank && !alreadyRanked) seedRankings(books);
       setProgress('Putting books on your shelf…');
-      await addBooks(books);
+      if (books.length) await addBooks(books);
+      if (yearFixes.length) {
+        setProgress('Adding read years…');
+        for (const b of yearFixes) await updateBook(b.id, b);
+      }
       posthog.capture('goodreads_imported', { count: books.length, ranked: rank && !alreadyRanked });
-      setAdded(books.length);
+      setAdded({ books: books.length, years: yearFixes.length });
       setStep('done');
       onImported();
     } catch (e) {
@@ -103,6 +112,11 @@ export default function GoodreadsImport({ existingBooks, onClose, onImported }) 
                 {[count('read') && `${count('read')} read`, count('reading') && `${count('reading')} reading`, count('want') && `${count('want')} want to read`].filter(Boolean).join(' · ') || 'Nothing new to add'}
                 {parsed.length > fresh.length && ` · ${parsed.length - fresh.length} already on your shelf`}
               </p>
+              {yearFixes.length > 0 && (
+                <p style={{ ...sans, fontSize: '12px', color: INK, marginTop: '6px' }}>
+                  Also adds the year you read {yearFixes.length} {yearFixes.length === 1 ? 'book' : 'books'} already on your shelf.
+                </p>
+              )}
 
               {rated > 0 && !alreadyRanked && (
                 <label className="flex items-start gap-3 mt-6 cursor-pointer">
@@ -119,11 +133,11 @@ export default function GoodreadsImport({ existingBooks, onClose, onImported }) 
               <div className="flex gap-3 mt-8">
                 <button
                   onClick={runImport}
-                  disabled={!fresh.length}
+                  disabled={!fresh.length && !yearFixes.length}
                   style={{ ...sans, fontSize: '13px', backgroundColor: INK, color: '#FAF8F5' }}
                   className="flex-1 rounded-full py-2.5 hover:opacity-80 disabled:opacity-30 transition-opacity"
                 >
-                  Import {fresh.length} books
+                  {fresh.length ? `Import ${fresh.length} books` : 'Add read years'}
                 </button>
                 <button onClick={() => { setStep('pick'); setParsed([]); }} style={{ ...sans, fontSize: '13px', color: MUTED }} className="px-4 hover:text-black">
                   Back
@@ -142,7 +156,8 @@ export default function GoodreadsImport({ existingBooks, onClose, onImported }) 
 
           {step === 'done' && (
             <div className="py-6 text-center">
-              <p style={{ ...sans, fontSize: '28px', fontWeight: 300, color: INK }}>Added {added} books</p>
+              <p style={{ ...sans, fontSize: '28px', fontWeight: 300, color: INK }}>{added.books ? `Added ${added.books} books` : 'All set'}</p>
+              {added.years > 0 && <p style={{ ...sans, fontSize: '12px', color: MUTED, marginTop: '6px' }}>Added read years to {added.years} books</p>}
               <button onClick={onClose} style={{ ...sans, fontSize: '13px', backgroundColor: INK, color: '#FAF8F5' }} className="mt-6 rounded-full px-8 py-2.5 hover:opacity-80">
                 See my shelf
               </button>

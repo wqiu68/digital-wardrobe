@@ -59,6 +59,7 @@ export function parseGoodreadsExport(text) {
       year: toYear(get(r, 'origYear')) || toYear(get(r, 'year')),
       notes: get(r, 'review').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim(),
       dateRead: toDate(get(r, 'dateRead')),
+      readYear: (() => { const t = toDate(get(r, 'dateRead')); return t ? new Date(t).getFullYear() : null; })(),
       addedAt: toDate(get(r, 'dateAdded')),
       cover: '', genre: '', olKey: '',
     };

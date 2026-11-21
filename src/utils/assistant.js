@@ -22,7 +22,9 @@ const SHELVES = ['want', 'reading', 'read'];
 const CATEGORIES = Object.keys(CATEGORY_LABEL);
 const OCCASIONS = ['everyday', 'work', 'athletic'];
 const clampRating = r => (Number.isInteger(r) && r >= 1 && r <= 5 ? r : null);
-const bookOut = b => ({ id: b.id, title: b.title, author: b.author, shelf: b.status, rating: b.rating || null });
+const bookOut = b => ({ id: b.id, title: b.title, author: b.author, shelf: b.status, rating: b.rating || null, year_read: b.readYear || null });
+const THIS_YEAR = new Date().getFullYear();
+const validYear = y => (Number.isInteger(y) && y >= 1900 && y <= THIS_YEAR ? y : null);
 const itemOut = i => ({ id: i.id, name: i.name, brand: i.brand, color: i.color, size: i.size, category: i.category });
 
 // Each tool returns { result } for Claude, plus an optional `done` line to show
@@ -60,6 +62,7 @@ const TOOLS = {
       author: found?.author || author || '',
       status: shelf,
       rating: shelf === 'read' ? clampRating(rating) : null,
+      readYear: shelf === 'read' ? validYear(input.year_read) || THIS_YEAR : null,
       notes: notes || '',
     });
     return {
@@ -69,7 +72,7 @@ const TOOLS = {
     };
   },
 
-  async update_book({ book_id, shelf, rating, notes }) {
+  async update_book({ book_id, shelf, rating, notes, year_read }) {
     if (!SHELVES.includes(shelf)) shelf = null;
     if (typeof notes !== 'string') notes = null;
     const book = (await getBooks()).find(b => b.id === book_id);
@@ -79,6 +82,7 @@ const TOOLS = {
       status: shelf ?? book.status,
       rating: rating != null ? clampRating(rating) : book.rating,
       notes: notes ?? book.notes,
+      readYear: validYear(year_read) || book.readYear || (shelf === 'read' && book.status !== 'read' ? THIS_YEAR : null),
     };
     const saved = await updateBook(book.id, next);
     const what = shelf && shelf !== book.status ? `Moved ${saved.title} to ${SHELF_LABEL[shelf]}` : `Updated ${saved.title}`;

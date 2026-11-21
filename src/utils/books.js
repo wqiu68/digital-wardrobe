@@ -23,6 +23,7 @@ function toDb(book) {
     isbn: book.isbn || '',
     ol_key: book.olKey || '',
     genre: book.genre || '',
+    read_year: toInt(book.readYear),
   };
 }
 
@@ -40,6 +41,7 @@ function fromDb(row) {
     isbn: row.isbn,
     olKey: row.ol_key,
     genre: row.genre || '',
+    readYear: row.read_year ?? null,
     sentiment: row.sentiment || null,
     rankOrder: row.rank_order,
     addedAt: row.added_at,

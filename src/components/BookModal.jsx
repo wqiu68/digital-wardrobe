@@ -9,7 +9,9 @@ export const SHELVES = [
 ];
 export const SHELF_TITLES = { reading: 'Currently Reading', read: 'Read', want: 'Want to Read' };
 
-const EMPTY = { title: '', author: '', cover: '', status: 'read', rating: null, notes: '', genre: '', year: '', pages: '', isbn: '', olKey: '' };
+const THIS_YEAR = new Date().getFullYear();
+const EMPTY = { title: '', author: '', cover: '', status: 'read', rating: null, readYear: THIS_YEAR, notes: '', genre: '', year: '', pages: '', isbn: '', olKey: '' };
+const READ_YEARS = Array.from({ length: 60 }, (_, i) => THIS_YEAR - i);
 
 const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
 const sans  = { fontFamily: "'Open Sans', sans-serif" };
@@ -54,7 +56,7 @@ export function Stars({ value, onChange, size = 14, on = '#1a1713', off = '#ddd5
 }
 
 export default function BookModal({ book, onSave, onClose }) {
-  const [form, setForm] = useState(book ? { ...EMPTY, ...book, year: book.year ?? '', pages: book.pages ?? '' } : { ...EMPTY });
+  const [form, setForm] = useState(book ? { ...EMPTY, ...book, readYear: book.readYear ?? '', year: book.year ?? '', pages: book.pages ?? '' } : { ...EMPTY });
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -211,7 +213,7 @@ export default function BookModal({ book, onSave, onClose }) {
                     <button
                       key={s.id}
                       type="button"
-                      onClick={() => set('status', s.id)}
+                      onClick={() => setForm(f => ({ ...f, status: s.id, readYear: s.id === 'read' && !f.readYear && f.status !== 'read' ? THIS_YEAR : f.readYear }))}
                       style={{
                         ...sans, fontSize: '10px', letterSpacing: '0.12em', flex: 1, padding: '8px 4px', textTransform: 'lowercase',
                         backgroundColor: active ? '#1a1713' : 'transparent',
@@ -227,11 +229,25 @@ export default function BookModal({ book, onSave, onClose }) {
               </div>
             </div>
 
-            {/* Rating (only for read books) */}
+            {/* Rating and year read (only for read books) */}
             {form.status === 'read' && (
-              <div>
-                <label style={labelCls}>rating</label>
-                <Stars value={form.rating} onChange={v => set('rating', v)} size={20} />
+              <div className="flex items-start gap-10">
+                <div>
+                  <label style={labelCls}>rating</label>
+                  <Stars value={form.rating} onChange={v => set('rating', v)} size={20} />
+                </div>
+                <div>
+                  <label style={labelCls}>year read</label>
+                  <select
+                    value={form.readYear || ''}
+                    onChange={e => set('readYear', e.target.value ? Number(e.target.value) : '')}
+                    style={{ ...sans, borderColor: '#d4ccc4', color: form.readYear ? '#1a1713' : '#b0a89e' }}
+                    className={inputCls + ' cursor-pointer'}
+                  >
+                    <option value="">Not sure</option>
+                    {READ_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
               </div>
             )}
 

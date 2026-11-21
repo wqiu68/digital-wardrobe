@@ -66,6 +66,37 @@ function BookGrid({ books, lentTo, onEdit, onDelete }) {
   );
 }
 
+// Read books grouped by the year they were finished, newest first; unknown years last
+function groupByYear(books) {
+  const groups = new Map();
+  books.filter(b => b.status === 'read').forEach(b => {
+    const key = b.readYear || 'unknown';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(b);
+  });
+  return [...groups.entries()].sort(([a], [b]) => (a === 'unknown') - (b === 'unknown') || b - a);
+}
+
+function YearSummary({ groups }) {
+  const known = groups.filter(([y]) => y !== 'unknown');
+  if (!known.length) return null;
+  const best = known.reduce((m, g) => (g[1].length > m[1].length ? g : m));
+  const pages = known.flatMap(([, bs]) => bs).reduce((n, b) => n + (Number(b.pages) || 0), 0);
+  const stat = (value, label) => (
+    <div>
+      <p style={{ ...sans, fontSize: '26px', fontWeight: 300, color: '#1a1713', lineHeight: 1, fontVariantNumeric: 'lining-nums' }}>{value}</p>
+      <p style={{ ...sans, fontSize: '11px', color: '#a09890', marginTop: '6px' }}>{label}</p>
+    </div>
+  );
+  return (
+    <div className="flex flex-wrap gap-x-12 gap-y-6 rounded-2xl px-6 py-5 mb-10" style={{ backgroundColor: '#f6f1ea', border: '1px solid #ece4d8' }}>
+      {stat(known.length, known.length === 1 ? 'year of reading' : 'years of reading')}
+      {stat(best[0], `biggest year · ${best[1].length} books`)}
+      {pages > 0 && stat(pages.toLocaleString(), 'pages across these years')}
+    </div>
+  );
+}
+
 // ─── Main bookshelf view ──────────────────────────────────────────────────────
 
 export default function BookshelfTab({ lentTo = {} }) {
@@ -141,12 +172,16 @@ export default function BookshelfTab({ lentTo = {} }) {
 
   const q = search.toLowerCase();
   const filtered = books.filter(b =>
-    (activeShelf === 'ALL' || b.status === activeShelf) &&
+    (activeShelf === 'ALL' || activeShelf === 'YEARS' || b.status === activeShelf) &&
     (!q || b.title.toLowerCase().includes(q) || b.author?.toLowerCase().includes(q))
   );
 
   const openEdit = b => setModal({ mode: 'edit', book: b });
-  const tabs = [{ id: 'ALL', label: 'All' }, ...SHELVES];
+  const tabs = [{ id: 'ALL', label: 'All' }, ...SHELVES, { id: 'YEARS', label: 'By Year' }];
+  const byYear = activeShelf === 'YEARS';
+  const yearGroups = groupByYear(filtered);
+  const thisYear = new Date().getFullYear();
+  const readThisYear = books.filter(b => b.status === 'read' && b.readYear === thisYear).length;
 
   return (
     <div>
@@ -154,7 +189,7 @@ export default function BookshelfTab({ lentTo = {} }) {
       <div className="flex flex-wrap items-center justify-between gap-4 mb-10" style={{ borderBottom: '1px solid #e8e3de' }}>
         <div className="flex gap-0 overflow-x-auto scrollbar-hide">
           {tabs.map(t => {
-            const count = t.id === 'ALL' ? books.length : (counts[t.id] || 0);
+            const count = t.id === 'ALL' ? books.length : t.id === 'YEARS' ? 0 : (counts[t.id] || 0);
             const isActive = activeShelf === t.id;
             return (
               <button
@@ -202,10 +237,10 @@ export default function BookshelfTab({ lentTo = {} }) {
         <div className="flex items-center justify-center py-36">
           <p style={{ ...serif, fontSize: '20px', fontWeight: 300, color: '#c9b99a' }}>loading your bookshelf…</p>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 || (byYear && !yearGroups.length) ? (
         <div className="flex flex-col items-center justify-center py-36 text-center">
           <p style={{ ...serif, fontSize: '28px', fontWeight: 300, color: '#c9b99a', marginBottom: '24px' }}>
-            {search ? 'No results.' : books.length === 0 ? 'Your bookshelf is empty.' : 'Nothing on this shelf.'}
+            {search ? 'No results.' : books.length === 0 ? 'Your bookshelf is empty.' : byYear ? 'No finished books yet.' : 'Nothing on this shelf.'}
           </p>
           {books.length === 0 && (
             <button
@@ -225,8 +260,26 @@ export default function BookshelfTab({ lentTo = {} }) {
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={filtered.map(b => b.id)} strategy={rectSortingStrategy}>
-            {activeShelf === 'ALL' ? (
-              SHELVES.map(shelf => {
+            {byYear ? (
+              <>
+                <YearSummary groups={yearGroups} />
+                {yearGroups.map(([year, yearBooks]) => (
+                  <Bookcase key={year} title={year === 'unknown' ? 'Year not set' : String(year)} count={yearBooks.length}>
+                    <BookGrid books={yearBooks} lentTo={lentTo} onEdit={openEdit} onDelete={handleDelete} />
+                  </Bookcase>
+                ))}
+                {yearGroups.some(([y]) => y === 'unknown') && (
+                  <p style={{ ...sans, fontSize: '12px', color: '#a09890', marginTop: '-12px' }}>Tap a book to set the year you read it.</p>
+                )}
+              </>
+            ) : activeShelf === 'ALL' ? (
+              <>
+              {readThisYear > 0 && !search && (
+                <button onClick={() => setActiveShelf('YEARS')} className="mb-8 hover:opacity-70 transition-opacity text-left" style={{ ...sans, fontSize: '13px', color: '#1a1713' }}>
+                  You've read <b style={{ fontWeight: 600 }}>{readThisYear} {readThisYear === 1 ? 'book' : 'books'}</b> in {thisYear}. <span style={{ color: '#a09890' }}>See by year →</span>
+                </button>
+              )}
+              {SHELVES.map(shelf => {
                 const shelfBooks = filtered.filter(b => b.status === shelf.id);
                 if (!shelfBooks.length) return null;
                 return (
@@ -234,7 +287,8 @@ export default function BookshelfTab({ lentTo = {} }) {
                     <BookGrid books={shelfBooks} lentTo={lentTo} onEdit={openEdit} onDelete={handleDelete} />
                   </Bookcase>
                 );
-              })
+              })}
+              </>
             ) : (
               <Bookcase title={SHELF_TITLES[activeShelf]} count={filtered.length}>
                 <BookGrid books={filtered} lentTo={lentTo} onEdit={openEdit} onDelete={handleDelete} />
