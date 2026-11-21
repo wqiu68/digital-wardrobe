@@ -43,7 +43,8 @@ jobs:
         run: supabase link --project-ref "$PROJECT_ID"
       - name: Apply new migrations
         if: steps.check.outputs.ready == 'true'
-        run: supabase db push
+        run: supabase db push --include-all
+      # Functions don't depend on the database step, so deploy them even if it failed
       - name: Deploy edge functions
-        if: steps.check.outputs.ready == 'true'
+        if: ${{ !cancelled() && steps.check.outputs.ready == 'true' }}
         run: supabase functions deploy --project-ref "$PROJECT_ID"
