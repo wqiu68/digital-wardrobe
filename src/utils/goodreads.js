@@ -2,6 +2,7 @@
 // route is the library export: My Books → Import and export → Export Library,
 // which gives a CSV of every book with shelf, rating, review and dates.
 import { inferGenre } from './ranking';
+import { cleanAuthor } from './books';
 
 // RFC 4180-ish CSV parser: quoted fields, "" escapes, newlines inside quotes
 export function parseCsv(text) {
@@ -51,7 +52,7 @@ export function parseGoodreadsExport(text) {
     const rating = Number(get(r, 'rating')) || null; // 0 means unrated
     return {
       title: cleanTitle(get(r, 'title')),
-      author: get(r, 'author'),
+      author: cleanAuthor(get(r, 'author')),
       isbn: cleanIsbn(get(r, 'isbn13')) || cleanIsbn(get(r, 'isbn')),
       status: SHELF_TO_STATUS[get(r, 'shelf')] || 'want',
       rating,
@@ -59,7 +60,7 @@ export function parseGoodreadsExport(text) {
       year: toYear(get(r, 'origYear')) || toYear(get(r, 'year')),
       notes: get(r, 'review').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim(),
       dateRead: toDate(get(r, 'dateRead')),
-      readYear: (() => { const t = toDate(get(r, 'dateRead')); return t ? new Date(t).getFullYear() : null; })(),
+      readYears: (() => { const t = toDate(get(r, 'dateRead')); return t ? [new Date(t).getFullYear()] : []; })(),
       addedAt: toDate(get(r, 'dateAdded')),
       cover: '', genre: '', olKey: '',
     };
@@ -119,4 +120,4 @@ export function seedRankings(books) {
   return books;
 }
 
-export const sameBookKey = b => `${(b.title || '').trim().toLowerCase()}|${(b.author || '').trim().toLowerCase()}`;
+export const sameBookKey = b => `${(b.title || '').trim().toLowerCase()}|${cleanAuthor(b.author).toLowerCase()}`;

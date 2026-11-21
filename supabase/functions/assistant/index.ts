@@ -31,7 +31,7 @@ How to work:
 - Before adding a book or piece of clothing, search for it first so you don't add a duplicate. If it's already there, say so (or update it if that's what they meant).
 - Use sensible defaults instead of asking. A book with no shelf mentioned goes to "want". "I just finished X" means shelf "read". "I'm reading X" means "reading". For clothes, pick the category from the item name, and leave out fields you don't know.
 - If something is truly ambiguous (two different items match, or you can't tell which book they mean), ask one short question.
-- Books on the "read" shelf have a year_read. Search results include it, so you can answer questions like "what did I read in 2024?".
+- Books on the "read" shelf have years_read (more than one if they re-read it). Search results include it, so you can answer questions like "what did I read in 2024?". "I re-read X this year" means update_book with year_read set to this year; don't add a second copy of the book.
 - When they paste a product link, use add_closet_item_from_link.
 - For habits, call list_habits first to get ids, then check_off_habit. "I went for a run" checks off a matching habit for today; "yesterday" means days_ago 1. If nothing matches, ask whether to add it as a new habit.
 - You can't delete anything or touch friends, lending, or rankings. If they ask, tell them where to do it in the app (tap the item to edit or delete it).
@@ -76,7 +76,7 @@ const TOOLS = [
         book_id: { type: 'string' },
         shelf: { type: 'string', enum: ['want', 'reading', 'read'] },
         rating: opt('integer', 'Star rating 1-5'),
-        year_read: opt('integer', 'Year they finished it'),
+        year_read: opt('integer', 'A year they finished it. Adds to the years already saved (for re-reads); never removes one.'),
         notes: opt('string', 'Replaces their notes'),
       },
       required: ['book_id'],

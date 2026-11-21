@@ -4,7 +4,7 @@ import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSe
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import posthog from 'posthog-js';
-import { getBooks, addBook, updateBook, deleteBook, reorderBooks } from '../utils/books';
+import { getBooks, addBook, updateBook, deleteBook, reorderBooks, cleanAuthor } from '../utils/books';
 import BookModal, { SHELVES, SHELF_TITLES, Stars } from './BookModal';
 import RankFlow from './RankFlow';
 import GoodreadsImport from './GoodreadsImport';
@@ -58,6 +58,20 @@ function SortableBookCard({ book, lentTo, onEdit, onDelete }) {
   );
 }
 
+function YearBookCard({ book, year, lentTo, onEdit }) {
+  const others = book.readYears.filter(y => y !== year);
+  return (
+    <div className="group cursor-pointer" onClick={() => onEdit(book)}>
+      <ShelvedBook book={book} lentTo={lentTo}>
+        <p style={{ ...serif, fontSize: '15px', color: ON_WOOD.title, lineHeight: 1.15 }} className="line-clamp-2">{book.title}</p>
+        {book.author && <p style={{ ...sans, fontSize: '10px', color: ON_WOOD.sub, marginTop: '3px', letterSpacing: '0.04em' }} className="truncate">{book.author}</p>}
+        {book.rating && <div className="mt-1"><Stars value={book.rating} size={11} on={ON_WOOD.starOn} off={ON_WOOD.starOff} /></div>}
+        {others.length > 0 && <p style={{ ...sans, fontSize: '10px', color: ON_WOOD.sub, marginTop: '3px' }}>Also read {others.join(', ')}</p>}
+      </ShelvedBook>
+    </div>
+  );
+}
+
 function BookGrid({ books, lentTo, onEdit, onDelete }) {
   return (
     <div className={BOOKCASE_GRID}>
@@ -70,9 +84,11 @@ function BookGrid({ books, lentTo, onEdit, onDelete }) {
 function groupByYear(books) {
   const groups = new Map();
   books.filter(b => b.status === 'read').forEach(b => {
-    const key = b.readYear || 'unknown';
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(b);
+    // A re-read book shows up in every year it was read
+    (b.readYears.length ? b.readYears : ['unknown']).forEach(key => {
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(b);
+    });
   });
   return [...groups.entries()].sort(([a], [b]) => (a === 'unknown') - (b === 'unknown') || b - a);
 }
@@ -132,6 +148,15 @@ export default function BookshelfTab({ lentTo = {} }) {
       // Finishing a book leads straight into ranking it (unless it's already ranked)
       let justFinished = false;
       if (modal.mode === 'add') {
+        const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+        const dupe = books.find(b =>
+          (form.olKey && b.olKey === form.olKey) ||
+          (norm(b.title) === norm(form.title) && norm(cleanAuthor(b.author)) === norm(cleanAuthor(form.author))));
+        if (dupe) {
+          setModal(null);
+          setError(`"${dupe.title}" is already on your shelf. Open it to add another year you read it.`);
+          return;
+        }
         saved = await addBook(form);
         justFinished = form.status === 'read';
         posthog.capture('book_added', { status: form.status, from_search: !!form.olKey });
@@ -181,7 +206,7 @@ export default function BookshelfTab({ lentTo = {} }) {
   const byYear = activeShelf === 'YEARS';
   const yearGroups = groupByYear(filtered);
   const thisYear = new Date().getFullYear();
-  const readThisYear = books.filter(b => b.status === 'read' && b.readYear === thisYear).length;
+  const readThisYear = books.filter(b => b.status === 'read' && b.readYears.includes(thisYear)).length;
 
   return (
     <div>
@@ -257,22 +282,24 @@ export default function BookshelfTab({ lentTo = {} }) {
             </button>
           )}
         </div>
-      ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={filtered.map(b => b.id)} strategy={rectSortingStrategy}>
-            {byYear ? (
-              <>
+      ) : byYear ? (
+        <div>
                 <YearSummary groups={yearGroups} />
                 {yearGroups.map(([year, yearBooks]) => (
                   <Bookcase key={year} title={year === 'unknown' ? 'Year not set' : String(year)} count={yearBooks.length}>
-                    <BookGrid books={yearBooks} lentTo={lentTo} onEdit={openEdit} onDelete={handleDelete} />
+                    <div className={BOOKCASE_GRID}>
+                      {yearBooks.map(b => <YearBookCard key={b.id} book={b} year={year} lentTo={lentTo[b.id]} onEdit={openEdit} />)}
+                    </div>
                   </Bookcase>
                 ))}
                 {yearGroups.some(([y]) => y === 'unknown') && (
                   <p style={{ ...sans, fontSize: '12px', color: '#a09890', marginTop: '-12px' }}>Tap a book to set the year you read it.</p>
                 )}
-              </>
-            ) : activeShelf === 'ALL' ? (
+        </div>
+      ) : (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={filtered.map(b => b.id)} strategy={rectSortingStrategy}>
+            {activeShelf === 'ALL' ? (
               <>
               {readThisYear > 0 && !search && (
                 <button onClick={() => setActiveShelf('YEARS')} className="mb-8 hover:opacity-70 transition-opacity text-left" style={{ ...sans, fontSize: '13px', color: '#1a1713' }}>

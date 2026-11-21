@@ -10,7 +10,7 @@ export const SHELVES = [
 export const SHELF_TITLES = { reading: 'Currently Reading', read: 'Read', want: 'Want to Read' };
 
 const THIS_YEAR = new Date().getFullYear();
-const EMPTY = { title: '', author: '', cover: '', status: 'read', rating: null, readYear: THIS_YEAR, notes: '', genre: '', year: '', pages: '', isbn: '', olKey: '' };
+const EMPTY = { title: '', author: '', cover: '', status: 'read', rating: null, readYears: [THIS_YEAR], notes: '', genre: '', year: '', pages: '', isbn: '', olKey: '' };
 const READ_YEARS = Array.from({ length: 60 }, (_, i) => THIS_YEAR - i);
 
 const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
@@ -56,7 +56,7 @@ export function Stars({ value, onChange, size = 14, on = '#1a1713', off = '#ddd5
 }
 
 export default function BookModal({ book, onSave, onClose }) {
-  const [form, setForm] = useState(book ? { ...EMPTY, ...book, readYear: book.readYear ?? '', year: book.year ?? '', pages: book.pages ?? '' } : { ...EMPTY });
+  const [form, setForm] = useState(book ? { ...EMPTY, ...book, readYears: book.readYears || [], year: book.year ?? '', pages: book.pages ?? '' } : { ...EMPTY });
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -213,7 +213,7 @@ export default function BookModal({ book, onSave, onClose }) {
                     <button
                       key={s.id}
                       type="button"
-                      onClick={() => setForm(f => ({ ...f, status: s.id, readYear: s.id === 'read' && !f.readYear && f.status !== 'read' ? THIS_YEAR : f.readYear }))}
+                      onClick={() => setForm(f => ({ ...f, status: s.id, readYears: s.id === 'read' && !f.readYears.length && f.status !== 'read' ? [THIS_YEAR] : f.readYears }))}
                       style={{
                         ...sans, fontSize: '10px', letterSpacing: '0.12em', flex: 1, padding: '8px 4px', textTransform: 'lowercase',
                         backgroundColor: active ? '#1a1713' : 'transparent',
@@ -231,22 +231,31 @@ export default function BookModal({ book, onSave, onClose }) {
 
             {/* Rating and year read (only for read books) */}
             {form.status === 'read' && (
-              <div className="flex items-start gap-10">
+              <div className="flex flex-wrap items-start gap-x-10 gap-y-5">
                 <div>
                   <label style={labelCls}>rating</label>
                   <Stars value={form.rating} onChange={v => set('rating', v)} size={20} />
                 </div>
-                <div>
-                  <label style={labelCls}>year read</label>
-                  <select
-                    value={form.readYear || ''}
-                    onChange={e => set('readYear', e.target.value ? Number(e.target.value) : '')}
-                    style={{ ...sans, borderColor: '#d4ccc4', color: form.readYear ? '#1a1713' : '#b0a89e' }}
-                    className={inputCls + ' cursor-pointer'}
-                  >
-                    <option value="">Not sure</option>
-                    {READ_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
+                <div className="min-w-0">
+                  <label style={labelCls}>{form.readYears.length > 1 ? 'years read' : 'year read'}</label>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {[...form.readYears].sort((a, b) => b - a).map(y => (
+                      <span key={y} className="inline-flex items-center gap-1 rounded-full pl-2.5 pr-1.5 py-0.5" style={{ ...sans, fontSize: '12px', backgroundColor: '#efe7dc', color: '#1a1713' }}>
+                        {y}
+                        <button type="button" onClick={() => set('readYears', form.readYears.filter(x => x !== y))} aria-label={`Remove ${y}`} className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-black/10" style={{ fontSize: '10px', color: '#8a8178' }}>✕</button>
+                      </span>
+                    ))}
+                    <select
+                      value=""
+                      onChange={e => e.target.value && set('readYears', [...form.readYears, Number(e.target.value)])}
+                      aria-label="Add a year you read it"
+                      style={{ ...sans, fontSize: '12px', color: '#8a8178' }}
+                      className="bg-transparent border-0 py-0.5 pl-1 pr-6 cursor-pointer focus:outline-none"
+                    >
+                      <option value="">{form.readYears.length ? '+ read again' : 'Not sure · pick a year'}</option>
+                      {READ_YEARS.filter(y => !form.readYears.includes(y)).map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
             )}

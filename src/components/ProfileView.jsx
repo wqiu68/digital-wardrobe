@@ -172,7 +172,7 @@ export default function ProfileView({ fallbackName, items, lending, onNameChange
           )}
           <Detail label="Books ranked" value={ranked.length ? String(ranked.length) : ''} />
           <Detail label="Favorite genre" value={favGenre} />
-          <Detail label={`Read in ${new Date().getFullYear()}`} value={(() => { const n = books.filter(b => b.status === 'read' && b.readYear === new Date().getFullYear()).length; return n ? String(n) : ''; })()} />
+          <Detail label={`Read in ${new Date().getFullYear()}`} value={(() => { const n = books.filter(b => b.status === 'read' && b.readYears.includes(new Date().getFullYear())).length; return n ? String(n) : ''; })()} />
           <Detail label="Pages read" value={pagesRead ? pagesRead.toLocaleString() : ''} />
           <Detail label="Lent to friends now" value={lentOut ? String(lentOut) : ''} />
           <Detail label="Borrowing now" value={borrowing.length ? String(borrowing.length) : ''} />

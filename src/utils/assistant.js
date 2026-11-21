@@ -1,7 +1,7 @@
 // "Ask homey": Claude decides what to do (via the `assistant` edge function),
 // and the browser carries it out here with the user's own session.
 import { supabase } from './supabase';
-import { getBooks, addBook, updateBook, searchBooks } from './books';
+import { getBooks, addBook, updateBook, searchBooks, cleanAuthor } from './books';
 import { getItems, addItem, updateItem } from './wardrobe';
 import { fetchProductInfo, fetchImageData } from './urlParser';
 import { sameBookKey } from './goodreads';
@@ -23,7 +23,7 @@ const SHELVES = ['want', 'reading', 'read'];
 const CATEGORIES = Object.keys(CATEGORY_LABEL);
 const OCCASIONS = ['everyday', 'work', 'athletic'];
 const clampRating = r => (Number.isInteger(r) && r >= 1 && r <= 5 ? r : null);
-const bookOut = b => ({ id: b.id, title: b.title, author: b.author, shelf: b.status, rating: b.rating || null, year_read: b.readYear || null });
+const bookOut = b => ({ id: b.id, title: b.title, author: b.author, shelf: b.status, rating: b.rating || null, years_read: b.readYears });
 const THIS_YEAR = new Date().getFullYear();
 const validYear = y => (Number.isInteger(y) && y >= 1900 && y <= THIS_YEAR ? y : null);
 const itemOut = i => ({ id: i.id, name: i.name, brand: i.brand, color: i.color, size: i.size, category: i.category });
@@ -35,7 +35,7 @@ const TOOLS = {
     query = str(query);
     const books = await getBooks();
     const hits = query.trim() ? books.filter(b => matches(query, b.title, b.author)) : books;
-    return { result: { count: hits.length, books: hits.slice(0, 25).map(bookOut) } };
+    return { result: { this_year: THIS_YEAR, count: hits.length, books: hits.slice(0, 25).map(bookOut) } };
   },
 
   async add_book(input) {
@@ -45,7 +45,7 @@ const TOOLS = {
     if (!title) return { result: { error: 'A title is required.' }, isError: true };
     const books = await getBooks();
     const key = sameBookKey({ title, author: author || '' });
-    const dupe = books.find(b => sameBookKey(b) === key || (!author && norm(b.title) === norm(title)));
+    const dupe = books.find(b => sameBookKey(b) === key || norm(b.title) === norm(title) && (!author || norm(cleanAuthor(b.author)) === norm(cleanAuthor(author))));
     if (dupe) return { result: { already_on_shelf: bookOut(dupe) } };
 
     let found = null;
@@ -53,17 +53,16 @@ const TOOLS = {
       const results = await searchBooks([title, author].filter(Boolean).join(' '));
       found = results.find(r => norm(r.title) === norm(title)) || results[0] || null;
     } catch { /* Open Library down: add with what we have */ }
-    if (found?.olKey && books.some(b => b.olKey === found.olKey)) {
-      return { result: { already_on_shelf: bookOut(books.find(b => b.olKey === found.olKey)) } };
-    }
+    const sameWork = found && books.find(b => (found.olKey && b.olKey === found.olKey) || norm(b.title) === norm(found.title));
+    if (sameWork) return { result: { already_on_shelf: bookOut(sameWork) } };
 
     const book = await addBook({
       ...(found || {}),
-      title: found?.title || title,
-      author: found?.author || author || '',
+      title,
+      author: author || found?.author || '',
       status: shelf,
       rating: shelf === 'read' ? clampRating(rating) : null,
-      readYear: shelf === 'read' ? validYear(input.year_read) || THIS_YEAR : null,
+      readYears: shelf === 'read' ? [validYear(input.year_read) || THIS_YEAR] : [],
       notes: notes || '',
     });
     return {
@@ -83,7 +82,9 @@ const TOOLS = {
       status: shelf ?? book.status,
       rating: rating != null ? clampRating(rating) : book.rating,
       notes: notes ?? book.notes,
-      readYear: validYear(year_read) || book.readYear || (shelf === 'read' && book.status !== 'read' ? THIS_YEAR : null),
+      // A new year is added to the list (re-reads), never replacing earlier ones
+      readYears: validYear(year_read) ? [...book.readYears, validYear(year_read)]
+        : shelf === 'read' && book.status !== 'read' && !book.readYears.length ? [THIS_YEAR] : book.readYears,
     };
     const saved = await updateBook(book.id, next);
     const what = shelf && shelf !== book.status ? `Moved ${saved.title} to ${SHELF_LABEL[shelf]}` : `Updated ${saved.title}`;

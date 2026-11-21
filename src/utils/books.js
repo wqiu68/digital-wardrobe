@@ -8,11 +8,17 @@ function toInt(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+// "Paulo Coelho (Author)" → "Paulo Coelho"
+export const cleanAuthor = a => (a || '').replace(/\s*\((author|translator|editor|illustrator|introduction|foreword|narrator)[^)]*\)/gi, '').trim();
+
+// Distinct, sensible years, newest first
+export const cleanYears = ys => [...new Set((ys || []).map(Number).filter(y => Number.isInteger(y) && y >= 1900 && y <= 2100))].sort((a, b) => b - a);
+
 function toDb(book) {
   const cover = book.cover || '';
   return {
     title: book.title,
-    author: book.author || '',
+    author: cleanAuthor(book.author),
     // Remote URLs are tiny; only cap embedded data URLs
     cover: cover.startsWith('data:') && cover.length > MAX_IMAGE_BYTES ? '' : cover,
     status: book.status || 'read',
@@ -23,7 +29,8 @@ function toDb(book) {
     isbn: book.isbn || '',
     ol_key: book.olKey || '',
     genre: book.genre || '',
-    read_year: toInt(book.readYear),
+    read_years: cleanYears(book.readYears),
+    read_year: cleanYears(book.readYears)[0] ?? null,
   };
 }
 
@@ -31,7 +38,7 @@ function fromDb(row) {
   return {
     id: row.id,
     title: row.title,
-    author: row.author,
+    author: cleanAuthor(row.author),
     cover: row.cover,
     status: row.status,
     rating: row.rating,
@@ -41,7 +48,7 @@ function fromDb(row) {
     isbn: row.isbn,
     olKey: row.ol_key,
     genre: row.genre || '',
-    readYear: row.read_year ?? null,
+    readYears: cleanYears(row.read_years?.length ? row.read_years : [row.read_year]),
     sentiment: row.sentiment || null,
     rankOrder: row.rank_order,
     addedAt: row.added_at,

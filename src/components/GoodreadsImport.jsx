@@ -31,9 +31,10 @@ export default function GoodreadsImport({ existingBooks, onClose, onImported }) 
   const rated = fresh.filter(b => b.status === 'read' && b.rating).length;
   const alreadyRanked = existingBooks.some(isRanked);
   // Books already on the shelf that Goodreads knows the read year for
-  const yearFixes = parsed.filter(b => !isNew(b) && b.status === 'read' && b.readYear).flatMap(b => {
-    const mine = existingBooks.find(e => e.status === 'read' && !e.readYear && (sameBookKey(e) === sameBookKey(b) || (b.isbn && e.isbn === b.isbn)));
-    return mine ? [{ ...mine, readYear: b.readYear }] : [];
+  const yearFixes = parsed.filter(b => !isNew(b) && b.status === 'read' && b.readYears.length).flatMap(b => {
+    const y = b.readYears[0];
+    const mine = existingBooks.find(e => e.status === 'read' && !e.readYears.includes(y) && (sameBookKey(e) === sameBookKey(b) || (b.isbn && e.isbn === b.isbn)));
+    return mine ? [{ ...mine, readYears: [...mine.readYears, y] }] : [];
   });
 
   async function readFile(file) {
