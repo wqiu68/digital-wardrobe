@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { getBooks } from '../utils/books';
+import TodayHabits from './TodayHabits';
 
 const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
 const sans  = { fontFamily: "'Open Sans', sans-serif" };
@@ -66,7 +67,7 @@ function Section({ icon, title, summary, note, onOpen }) {
 
 // ─── Home ─────────────────────────────────────────────────────────────────────
 
-export default function HomeView({ displayName, items, loadingItems, lendingRequests, friendRequests, onGo }) {
+export default function HomeView({ displayName, items, loadingItems, lendingRequests, friendRequests, habitsVersion, onGo }) {
   const [books, setBooks] = useState(null);
 
   useEffect(() => { getBooks().then(setBooks).catch(() => setBooks([])); }, []);
@@ -84,6 +85,8 @@ export default function HomeView({ displayName, items, loadingItems, lendingRequ
       >
         Welcome home{firstName ? `, ${firstName}` : ''}.
       </motion.h2>
+
+      <TodayHabits refreshKey={habitsVersion} onOpenMonth={() => onGo('habits')} />
 
       <div className="grid sm:grid-cols-2 gap-5 sm:gap-8">
         <Section
@@ -110,7 +113,14 @@ export default function HomeView({ displayName, items, loadingItems, lendingRequ
         />
       </div>
 
-      <div className="mt-14 flex justify-center">
+      <div className="mt-14 flex justify-center gap-10">
+        <button
+          onClick={() => onGo('habits')}
+          className="flex items-center gap-2 hover:text-black transition-colors"
+          style={{ ...sans, fontSize: '12px', color: '#a09890' }}
+        >
+          Habits <span>→</span>
+        </button>
         <button
           onClick={() => onGo('friends')}
           className="flex items-center gap-2 hover:text-black transition-colors"

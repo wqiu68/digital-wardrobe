@@ -6,6 +6,7 @@ import { getItems, addItem, updateItem } from './wardrobe';
 import { fetchProductInfo, fetchImageData } from './urlParser';
 import { sameBookKey } from './goodreads';
 import { compressImage } from '../components/ItemModal';
+import { getHabits, addHabit, getChecks, setCheck, streak, dayKey } from './habits';
 
 const MAX_STEPS = 10;
 const SHELF_LABEL = { want: 'Want to Read', reading: 'Currently Reading', read: 'Read' };
@@ -146,6 +147,34 @@ const TOOLS = {
     return { result: { updated: itemOut(saved) }, done: `Updated ${saved.name}`, changed: 'closet' };
   },
 };
+
+// ─── Habits ───
+const daysAgoKey = n => { const d = new Date(); d.setDate(d.getDate() - n); return dayKey(d); };
+
+Object.assign(TOOLS, {
+  async list_habits() {
+    const [habits, checks] = await Promise.all([getHabits(), getChecks(daysAgoKey(120), daysAgoKey(0))]);
+    return { result: { today: daysAgoKey(0), habits: habits.map(h => ({ id: h.id, name: h.name, done_today: checks.has(`${h.id}|${daysAgoKey(0)}`), streak: streak(checks, h.id) })) } };
+  },
+
+  async check_off_habit({ habit_id, done, days_ago }) {
+    const habit = (await getHabits()).find(h => h.id === habit_id);
+    if (!habit) return { result: { error: 'No habit with that id. Call list_habits.' }, isError: true };
+    const ago = Number.isInteger(days_ago) && days_ago >= 0 && days_ago <= 30 ? days_ago : 0;
+    const on = done !== false;
+    await setCheck(habit.id, daysAgoKey(ago), on);
+    const when = ago === 0 ? 'today' : ago === 1 ? 'yesterday' : `${ago} days ago`;
+    return { result: { habit: habit.name, day: daysAgoKey(ago), done: on }, done: `${on ? 'Checked off' : 'Unchecked'} ${habit.name} for ${when}`, changed: 'habits' };
+  },
+
+  async add_habit({ name }) {
+    const clean = str(name);
+    const existing = (await getHabits()).find(h => norm(h.name) === norm(clean));
+    if (existing) return { result: { already_exists: { id: existing.id, name: existing.name } } };
+    const habit = await addHabit(clean);
+    return { result: { added: { id: habit.id, name: habit.name } }, done: `Added habit: ${habit.name}`, changed: 'habits' };
+  },
+});
 
 async function callClaude(messages) {
   const { data, error } = await supabase.functions.invoke('assistant', { body: { messages } });

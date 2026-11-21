@@ -24,7 +24,7 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 }
 
-const SYSTEM = `You are the assistant inside homey, an app where someone keeps their closet (clothes they own) and their bookshelf (books they've read, are reading, or want to read). You make changes for them so they don't have to fill in forms.
+const SYSTEM = `You are the assistant inside homey, an app where someone keeps their closet (clothes they own), their bookshelf (books they've read, are reading, or want to read), and a daily habit tracker. You make changes for them so they don't have to fill in forms.
 
 How to work:
 - Do what they ask with the tools, then reply in one or two short, friendly sentences saying what you did. No lists or headings unless they asked for a list.
@@ -33,6 +33,7 @@ How to work:
 - If something is truly ambiguous (two different items match, or you can't tell which book they mean), ask one short question.
 - Books on the "read" shelf have a year_read. Search results include it, so you can answer questions like "what did I read in 2024?".
 - When they paste a product link, use add_closet_item_from_link.
+- For habits, call list_habits first to get ids, then check_off_habit. "I went for a run" checks off a matching habit for today; "yesterday" means days_ago 1. If nothing matches, ask whether to add it as a new habit.
 - You can't delete anything or touch friends, lending, or rankings. If they ask, tell them where to do it in the app (tap the item to edit or delete it).
 - Only use the tools for this person's own closet and shelf. If they ask for something unrelated to homey, answer briefly and steer back.`;
 
@@ -142,6 +143,35 @@ const TOOLS = [
         notes: opt('string', 'Replaces their notes'),
       },
       required: ['item_id'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'list_habits',
+    description: 'List their daily habits with ids, whether each is done today, and the current streak.',
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'check_off_habit',
+    description: 'Mark a habit done (or not done) for today or a recent day. Get the id from list_habits.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        habit_id: { type: 'string' },
+        done: opt('boolean', 'true to check off (default), false to uncheck'),
+        days_ago: opt('integer', '0 = today (default), 1 = yesterday, up to 30'),
+      },
+      required: ['habit_id'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'add_habit',
+    description: 'Add a new daily habit to track.',
+    input_schema: {
+      type: 'object',
+      properties: { name: { type: 'string', description: 'Short, e.g. "Read 20 pages" or "Walk 10k steps"' } },
+      required: ['name'],
       additionalProperties: false,
     },
   },

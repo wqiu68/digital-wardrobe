@@ -15,6 +15,7 @@ import RankingsTab from './RankingsTab';
 import HomeView from './HomeView';
 import ProfileView, { Avatar } from './ProfileView';
 import AssistantPanel from './AssistantPanel';
+import HabitsView from './HabitsView';
 
 const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
 const sans  = { fontFamily: "'Open Sans', sans-serif" };
@@ -182,10 +183,11 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [loadingItems, setLoadingItems] = useState(true);
-  const [view, setView] = useState('home'); // 'home' | 'profile' | 'friends' | 'closet' | 'closet-friends' | 'bookshelf' | 'rankings' | 'lending' | 'book-friends'
+  const [view, setView] = useState('home'); // 'home' | 'profile' | 'friends' | 'closet' | 'closet-friends' | 'bookshelf' | 'rankings' | 'lending' | 'book-friends' | 'habits'
   const [pendingCount, setPendingCount] = useState(0);
   // Bumped when the assistant changes books, so the shelf and rankings reload
   const [booksVersion, setBooksVersion] = useState(0);
+  const [habitsVersion, setHabitsVersion] = useState(0);
   const [lending, setLending] = useState([]);
   const [name, setName] = useState(displayName); // the name friends see
 
@@ -432,9 +434,13 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
             loadingItems={loadingItems}
             lendingRequests={loanRequestCount}
             friendRequests={pendingCount}
+            habitsVersion={habitsVersion}
             onGo={setView}
           />
         )}
+
+        {/* ── Habits ── */}
+        {view === 'habits' && <HabitsView key={habitsVersion} />}
 
         {/* ── Profile ── */}
         {view === 'profile' && <ProfileView fallbackName={name} items={items} lending={lending} onNameChange={setName} onLogout={onLogout} />}
@@ -522,6 +528,7 @@ export default function WardrobeApp({ user, displayName, onLogout }) {
         onChanged={changed => {
           if (changed.includes('closet')) loadItems();
           if (changed.includes('books')) setBooksVersion(v => v + 1);
+          if (changed.includes('habits')) setHabitsVersion(v => v + 1);
         }}
       />
 

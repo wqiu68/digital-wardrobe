@@ -10,7 +10,7 @@ const CREAM = '#FAF8F5';
 const SUGGESTIONS = {
   closet: ['Add a black wool coat from Everlane', 'Add white sneakers, size 8', 'Paste a product link to add it'],
   books: ['Add Tomorrow, and Tomorrow, and Tomorrow to want to read', "I just finished Circe, 5 stars", "What's on my Currently Reading?"],
-  any: ['Add Dune to my want to read', 'Add a navy linen shirt to my closet', "I just finished Circe, 5 stars"],
+  any: ['I read and went for a walk today', 'Add Dune to my want to read', 'Add a navy linen shirt to my closet'],
 };
 
 const Sparkle = ({ size = 18, color = 'currentColor' }) => (
@@ -101,7 +101,7 @@ export default function AssistantPanel({ space = 'any', onChanged }) {
           {lines.length === 0 && (
             <div>
               <p style={{ ...sans, fontSize: '13px', color: INK, lineHeight: 1.55 }}>
-                Tell me what to add or change and I'll do it. Books, clothes, or a product link.
+                Tell me what to add or change and I'll do it. Books, clothes, habits, or a product link.
               </p>
               <div className="mt-4 flex flex-col items-start gap-2">
                 {SUGGESTIONS[space].map(s => (
