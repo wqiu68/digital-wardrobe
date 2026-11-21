@@ -38,12 +38,12 @@ jobs:
       - if: steps.check.outputs.ready == 'true'
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.122.1  # 3.x changed defaults (targets a local db); upgrade deliberately
       - if: steps.check.outputs.ready == 'true'
         run: supabase link --project-ref "$PROJECT_ID"
       - name: Apply new migrations
         if: steps.check.outputs.ready == 'true'
-        run: supabase db push --remote --include-all
+        run: supabase db push --include-all
       # Functions don't depend on the database step, so deploy them even if it failed
       - name: Deploy edge functions
         if: ${{ !cancelled() && steps.check.outputs.ready == 'true' }}
