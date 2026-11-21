@@ -10,7 +10,7 @@ name: Supabase
 on:
   push:
     branches: [main]
-    paths: ['supabase/**']
+    paths: ['supabase/**', '.github/workflows/supabase.yml']
   workflow_dispatch:
 
 concurrency: supabase-deploy
@@ -43,7 +43,7 @@ jobs:
         run: supabase link --project-ref "$PROJECT_ID"
       - name: Apply new migrations
         if: steps.check.outputs.ready == 'true'
-        run: supabase db push --include-all
+        run: supabase db push --remote --include-all
       # Functions don't depend on the database step, so deploy them even if it failed
       - name: Deploy edge functions
         if: ${{ !cancelled() && steps.check.outputs.ready == 'true' }}
