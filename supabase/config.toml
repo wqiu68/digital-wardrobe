@@ -1,3 +1,4 @@
 # Supabase CLI config. Used by the GitHub Action that applies database
-# migrations and deploys edge functions; nothing here runs locally.
+# migrations and deploys edge functions (fetch-page, assistant) on every push
+# to main that touches supabase/. Nothing here runs locally.
 project_id = "homey"
