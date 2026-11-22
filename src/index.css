@@ -24,3 +24,13 @@ html, body {
 body { padding-bottom: env(safe-area-inset-bottom); }
 
 body { font-family: 'Open Sans', system-ui, sans-serif; }
+
+/* Neighborhood: people bob a little and wave on hover */
+@keyframes homey-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.2px); } }
+@keyframes homey-wave { 0%, 100% { transform: rotate(-135deg); } 50% { transform: rotate(-165deg); } }
+.homey-person { animation: homey-bob 2.6s ease-in-out infinite; }
+.homey-wave { animation: homey-wave .7s ease-in-out infinite; transform-box: fill-box; transform-origin: center top; }
+@media (prefers-reduced-motion: reduce) { .homey-person, .homey-wave { animation: none; } }
+@keyframes homey-flicker { 0%, 100% { transform: scale(1) rotate(0deg); } 40% { transform: scale(1.08, 1.12) rotate(-3deg); } 70% { transform: scale(.97, 1.04) rotate(2deg); } }
+.homey-flame { animation: homey-flicker 1.6s ease-in-out infinite; transform-origin: 50% 90%; }
+@media (prefers-reduced-motion: reduce) { .homey-flame { animation: none; } }

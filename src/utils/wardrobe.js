@@ -60,7 +60,7 @@ export async function addItem(item) {
 
   const { data, error } = await supabase
     .from('wardrobe_items')
-    .insert({ ...toDb(item), user_id: user.id, sort_order: minSort - 1, added_at: Date.now() })
+    .insert({ ...toDb(item), user_id: user.id, sort_order: minSort - 1, added_at: Date.now(), ...(item.separatePost ? { separate_post: true } : {}) })
     .select()
     .single();
   if (error) throw error;

@@ -28,6 +28,7 @@ export default function AssistantPanel({ space = 'any', onChanged }) {
   const [history, setHistory] = useState([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  const [remaining, setRemaining] = useState(null);
   const scroller = useRef(null);
   const input = useRef(null);
 
@@ -48,6 +49,7 @@ export default function AssistantPanel({ space = 'any', onChanged }) {
     try {
       const out = await ask(history, msg, e => setLines(l => [...l, { role: 'action', text: e.text }]));
       setHistory(out.history);
+      if (out.remaining != null) setRemaining(out.remaining);
       setLines(l => [...l, { role: 'assistant', text: out.reply }]);
       if (out.changed.size) onChanged?.([...out.changed]);
       posthog.capture('assistant_used', { changed: [...out.changed] });
@@ -147,6 +149,11 @@ export default function AssistantPanel({ space = 'any', onChanged }) {
           )}
         </div>
 
+        {remaining != null && remaining <= 5 && (
+          <p className="shrink-0 px-5 pb-1" style={{ ...sans, fontSize: '11px', color: MUTED }}>
+            {remaining === 0 ? "That was today's last message. Ask homey resets tomorrow." : `${remaining} ${remaining === 1 ? 'message' : 'messages'} left today`}
+          </p>
+        )}
         <form
           onSubmit={e => { e.preventDefault(); send(draft); }}
           className="shrink-0 flex items-end gap-2 px-4 pt-3"
@@ -159,7 +166,7 @@ export default function AssistantPanel({ space = 'any', onChanged }) {
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(draft); } }}
             placeholder="Add Dune to want to read…"
-            maxLength={2000}
+            maxLength={600}
             style={{ ...sans, fontSize: '13px', color: INK, maxHeight: '120px' }}
             className="flex-1 resize-none bg-white rounded-2xl px-3.5 py-2 border border-[#e0d9d2] focus:outline-none focus:border-black/40 placeholder:text-black/30"
           />

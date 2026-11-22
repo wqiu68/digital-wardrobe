@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CATEGORIES } from './ItemModal';
 import {
   getFriends,
@@ -15,6 +15,8 @@ import FriendBookshelfView from './FriendBookshelfView';
 import FriendRankingsView from './FriendRankingsView';
 
 import PhoneField from './PhoneField';
+import Neighborhood from './Neighborhood';
+import { getCurrentUser } from '../utils/supabase';
 import { canPickContacts, pickContacts, inviteByText } from '../utils/phone';
 const serif = { fontFamily: "'Open Sans', system-ui, sans-serif" };
 const sans  = { fontFamily: "'Open Sans', sans-serif" };
@@ -238,6 +240,8 @@ export default function FriendsTab({ onPendingCountChange, scope }) {
   const [sentTo, setSentTo] = useState({});
   const [inviteNote, setInviteNote] = useState('');
   const [loading, setLoading] = useState(true);
+  const [me, setMe] = useState(null);
+  const addInput = useRef(null);
 
   async function loadAll() {
     try {
@@ -253,7 +257,10 @@ export default function FriendsTab({ onPendingCountChange, scope }) {
     }
   }
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    loadAll();
+    getCurrentUser().then(u => setMe(u?.id || null)).catch(() => {});
+  }, []);
 
   async function handleAdd(e) {
     e.preventDefault();
@@ -343,6 +350,20 @@ export default function FriendsTab({ onPendingCountChange, scope }) {
   }
 
   return (
+    <div>
+    {me && !loading && (
+      <Neighborhood
+        me={me}
+        friends={friends}
+        scope={scope}
+        onOpenFriend={(f, section) => {
+          const ok = sectionsFor(scope).map(x => x.id);
+          setSelectedFriend({ friend: f, section: ok.includes(section) ? section : ok[0] });
+          window.scrollTo({ top: 0 });
+        }}
+        onInvite={() => { addInput.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => addInput.current?.focus(), 300); }}
+      />
+    )}
     <div className="max-w-lg">
 
       <PhoneField variant="banner" />
@@ -354,6 +375,7 @@ export default function FriendsTab({ onPendingCountChange, scope }) {
         </h2>
         <form onSubmit={handleAdd} className="flex gap-3">
           <input
+            ref={addInput}
             type="text"
             autoComplete="off"
             value={addEmail}
@@ -538,6 +560,7 @@ export default function FriendsTab({ onPendingCountChange, scope }) {
           )}
         </>
       )}
+    </div>
     </div>
   );
 }

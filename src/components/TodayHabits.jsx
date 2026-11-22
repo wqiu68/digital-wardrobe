@@ -20,6 +20,20 @@ export function Check({ done, size = 22 }) {
   );
 }
 
+// Flame + "4 day" for streaks of 2+ days. The flame gets hotter as it grows.
+export function StreakBadge({ days, compact = false }) {
+  const hot = days >= 7;
+  return (
+    <span className="shrink-0 inline-flex items-center gap-1" style={{ ...sans, color: hot ? '#d4431c' : '#c2551f' }} title={`${days} days in a row`}>
+      <svg width={compact ? 12 : 16} height={compact ? 12 : 16} viewBox="0 0 24 24" aria-hidden="true" className="homey-flame">
+        <path d="M12 2c1 3.6-1.6 5.4-3 7.6C7.6 11.8 7 13.4 7 15a5 5 0 0 0 10 0c0-2.2-1-4.1-2.2-5.4.1 1.6-.5 2.8-1.6 3.4.3-3.6-.6-7.6-1.2-11Z" fill={hot ? '#e8461f' : '#f0603a'} />
+        <path d="M12 21a3 3 0 0 1-3-3c0-1.6 1.2-2.6 2-3.8.4 1 1.2 1.5 1.9 1.6-.2-.9 0-1.9.4-2.6C14.2 14.4 15 15.8 15 18a3 3 0 0 1-3 3Z" fill="#ffb03a" />
+      </svg>
+      <span style={{ fontSize: compact ? '11px' : '13px', fontWeight: 700 }}>{days}</span>
+    </span>
+  );
+}
+
 export function AddHabitForm({ onAdded, autoFocus, placeholder = 'Add a habit, e.g. Read 20 pages' }) {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -179,7 +193,7 @@ export default function TodayHabits({ onOpenMonth, refreshKey }) {
                 <span style={{ ...sans, fontSize: '14px', color: done ? MUTED : INK, textDecoration: done ? 'line-through' : 'none', textDecorationColor: '#cfc6bb' }} className="flex-1 min-w-0 truncate group-hover:opacity-80">
                   {h.name}
                 </span>
-                {s >= 2 && <span style={{ ...sans, fontSize: '11px', color: MUTED }} className="shrink-0">{s}-day streak</span>}
+                {s >= 2 && <StreakBadge days={s} />}
               </button>
             </li>
           );

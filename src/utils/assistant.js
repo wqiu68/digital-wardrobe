@@ -197,18 +197,20 @@ async function callClaude(messages) {
 export async function ask(history, text, onEvent) {
   const messages = [...history, { role: 'user', content: text }];
   const changed = new Set();
+  let remaining = null;
 
   for (let step = 0; step < MAX_STEPS; step++) {
-    const { content, stop_reason } = await callClaude(messages);
+    const { content, stop_reason, remaining: left } = await callClaude(messages);
+    if (left != null) remaining = left;
     messages.push({ role: 'assistant', content });
 
     if (stop_reason === 'refusal') {
-      return { history: messages.slice(0, -2), reply: "Sorry, I can't help with that one.", changed };
+      return { history: messages.slice(0, -2), reply: "Sorry, I can't help with that one.", changed, remaining };
     }
     const calls = content.filter(b => b.type === 'tool_use');
     if (stop_reason !== 'tool_use' || !calls.length) {
       const reply = content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
-      return { history: messages, reply: reply || 'Done.', changed };
+      return { history: messages, reply: reply || 'Done.', changed, remaining };
     }
 
     const results = [];
@@ -231,5 +233,5 @@ export async function ask(history, text, onEvent) {
     }
     messages.push({ role: 'user', content: results });
   }
-  return { history: messages, reply: 'That took more steps than I expected. Check your shelf and closet, and tell me if anything is missing.', changed };
+  return { history: messages, reply: 'That took more steps than I expected. Check your shelf and closet, and tell me if anything is missing.', changed, remaining };
 }

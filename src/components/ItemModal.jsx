@@ -332,6 +332,19 @@ export default function ItemModal({ item, onSave, onClose }) {
             </div>
           </div>
 
+          {/* Feed: pieces added within 12 hours share one post unless split out */}
+          {!item && (
+            <label className="flex items-start gap-3 px-7 pb-5 cursor-pointer select-none">
+              <input type="checkbox" checked={!!form.separatePost} onChange={e => set('separatePost', e.target.checked)} className="mt-0.5 accent-[#1a1713]" />
+              <span>
+                <span style={{ ...sans, fontSize: '12px', color: '#1a1713' }}>Post on its own</span>
+                <span className="block" style={{ ...sans, fontSize: '11px', color: '#a09890', marginTop: '2px', lineHeight: 1.45 }}>
+                  Pieces you add within 12 hours show up together in your friends' feed. Tick this to give this one its own post.
+                </span>
+              </span>
+            </label>
+          )}
+
           {/* Footer */}
           <div className="flex gap-2 px-7 py-5" style={{ borderTop: '1px solid #e8e3de' }}>
             <button

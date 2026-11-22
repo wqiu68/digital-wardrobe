@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { getHabits, getChecks, setCheck, renameHabit, removeHabit, streak, dayKey, todayKey, isMissingTable } from '../utils/habits';
-import { AddHabitForm, DONE } from './TodayHabits';
+import { AddHabitForm, DONE, StreakBadge } from './TodayHabits';
 
 const sans = { fontFamily: "'Open Sans', sans-serif" };
 const INK = '#1a1713';
@@ -13,7 +13,7 @@ function RowMenu({ habit, onRename, onRemove }) {
   const [confirmRemove, setConfirmRemove] = useState(false);
   return (
     <div className="relative shrink-0">
-      <button onClick={() => { setMenu(m => !m); setConfirmRemove(false); }} aria-label={`Options for ${habit.name}`} className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/5 opacity-50 hover:opacity-100" style={{ color: MUTED }}>
+      <button onClick={() => { setMenu(m => !m); setConfirmRemove(false); }} aria-label={`Options for ${habit.name}`} className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/5" style={{ color: INK }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
       </button>
       {menu && (
@@ -117,12 +117,14 @@ function HabitGrid({ habits, year, month, checks, onToggle, onRename, onRemove }
                       style={{ ...sans, fontSize: '13px', color: INK, borderColor: '#d4ccc4' }} className="w-full bg-transparent border-b py-0.5 focus:outline-none" />
                   </form>
                 ) : (
-                  <p style={{ ...sans, fontSize: '13px', fontWeight: 500, color: INK, lineHeight: 1.3 }} className="truncate" title={h.name}>{h.name}</p>
+                  <button onClick={() => { setDraft(h.name); setEditing(h.id); }} style={{ ...sans, fontSize: '13px', fontWeight: 500, color: INK, lineHeight: 1.3 }} className="block max-w-full truncate text-left hover:underline underline-offset-2 decoration-black/30" title="Tap to rename">{h.name}</button>
                 )}
-                <p style={{ ...sans, fontSize: '11px', color: MUTED, marginTop: '1px' }}>
-                  {c.length ? <><span style={{ color: pct >= 80 ? DONE : MUTED, fontWeight: pct >= 80 ? 600 : 400 }}>{pct}%</span> · {done}/{c.length} days</> : 'Not started'}
-                  {s >= 2 && ` · ${s}-day streak`}
-                </p>
+                <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: '2px' }}>
+                  <p style={{ ...sans, fontSize: '11px', color: MUTED }}>
+                    {c.length ? <><span style={{ color: pct >= 80 ? DONE : MUTED, fontWeight: pct >= 80 ? 600 : 400 }}>{pct}%</span> · {done}/{c.length} days</> : 'Not started'}
+                  </p>
+                  {s >= 2 && <StreakBadge days={s} compact />}
+                </div>
               </div>
               <RowMenu habit={h} onRename={x => { setDraft(x.name); setEditing(x.id); }} onRemove={onRemove} />
             </div>
