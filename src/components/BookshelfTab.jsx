@@ -5,7 +5,7 @@ import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@d
 import { CSS } from '@dnd-kit/utilities';
 import posthog from 'posthog-js';
 import { getBooks, addBook, updateBook, deleteBook, reorderBooks, cleanAuthor } from '../utils/books';
-import BookModal, { SHELVES, SHELF_TITLES, Stars } from './BookModal';
+import BookModal, { SHELVES, SHELF_TITLES, HIDDEN_FROM_ALL, Stars } from './BookModal';
 import RankFlow from './RankFlow';
 import GoodreadsImport from './GoodreadsImport';
 import { isRanked } from '../utils/ranking';
@@ -170,7 +170,7 @@ export default function BookshelfTab({ lentTo = {} }) {
       if (justFinished) setRankBook(saved);
     } catch (e) {
       setError(e.message?.includes('books_status_check')
-        ? 'The Want to Read shelf needs a database update — run supabase/migrations/20261120000000_want_to_read.sql in Supabase.'
+        ? 'This shelf needs a database update — run supabase/migrations/20261129000000_did_not_finish.sql in Supabase.'
         : e.message || 'Could not save book.');
     }
   }
@@ -196,8 +196,9 @@ export default function BookshelfTab({ lentTo = {} }) {
   books.forEach(b => { counts[b.status] = (counts[b.status] || 0) + 1; });
 
   const q = search.toLowerCase();
+  const onAll = b => !HIDDEN_FROM_ALL.includes(b.status);
   const filtered = books.filter(b =>
-    (activeShelf === 'ALL' || activeShelf === 'YEARS' || b.status === activeShelf) &&
+    ((activeShelf === 'ALL' && onAll(b)) || activeShelf === 'YEARS' || b.status === activeShelf) &&
     (!q || b.title.toLowerCase().includes(q) || b.author?.toLowerCase().includes(q))
   );
 
@@ -214,7 +215,7 @@ export default function BookshelfTab({ lentTo = {} }) {
       <div className="flex flex-wrap items-center justify-between gap-4 mb-10" style={{ borderBottom: '1px solid #e8e3de' }}>
         <div className="flex gap-0 overflow-x-auto scrollbar-hide">
           {tabs.map(t => {
-            const count = t.id === 'ALL' ? books.length : t.id === 'YEARS' ? 0 : (counts[t.id] || 0);
+            const count = t.id === 'ALL' ? books.filter(onAll).length : t.id === 'YEARS' ? 0 : (counts[t.id] || 0);
             const isActive = activeShelf === t.id;
             return (
               <button
@@ -306,9 +307,26 @@ export default function BookshelfTab({ lentTo = {} }) {
                   You've read <b style={{ fontWeight: 600 }}>{readThisYear} {readThisYear === 1 ? 'book' : 'books'}</b> in {thisYear}. <span style={{ color: '#a09890' }}>See by year →</span>
                 </button>
               )}
-              {SHELVES.map(shelf => {
+              {SHELVES.filter(s => !HIDDEN_FROM_ALL.includes(s.id)).map(shelf => {
                 const shelfBooks = filtered.filter(b => b.status === shelf.id);
-                if (!shelfBooks.length) return null;
+                // Currently Reading always has a place on the All page, even when it's empty
+                if (!shelfBooks.length) {
+                  if (shelf.id !== 'reading' || search) return null;
+                  return (
+                    <Bookcase key={shelf.id} title={SHELF_TITLES[shelf.id]} count={0}>
+                      <div className="py-8 text-center">
+                        <p style={{ ...serif, fontSize: '16px', color: ON_WOOD.title }}>You're not reading anything right now.</p>
+                        <button
+                          onClick={() => setModal({ mode: 'add', status: 'reading' })}
+                          style={{ ...sans, fontSize: '12px', color: ON_WOOD.sub }}
+                          className="mt-2 hover:opacity-80 transition-opacity"
+                        >
+                          + Add a book you're reading
+                        </button>
+                      </div>
+                    </Bookcase>
+                  );
+                }
                 return (
                   <Bookcase key={shelf.id} title={SHELF_TITLES[shelf.id]} count={shelfBooks.length}>
                     <BookGrid books={shelfBooks} lentTo={lentTo} onEdit={openEdit} onDelete={handleDelete} />
@@ -338,6 +356,7 @@ export default function BookshelfTab({ lentTo = {} }) {
         {modal && (
           <BookModal
             book={modal.mode === 'edit' ? modal.book : null}
+            initialStatus={modal.status}
             onSave={handleSave}
             onClose={() => setModal(null)}
           />

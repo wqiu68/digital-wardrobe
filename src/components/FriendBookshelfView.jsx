@@ -48,7 +48,8 @@ export default function FriendBookshelfView({ friend }) {
 
   const q = search.toLowerCase();
   const filtered = books.filter(b => !q || b.title.toLowerCase().includes(q) || b.author?.toLowerCase().includes(q));
-  const library = filtered.filter(b => b.status !== 'want');
+  // Did Not Finish books stay off a friend's view of the shelf
+  const library = filtered.filter(b => b.status !== 'want' && b.status !== 'dnf');
   const wants = filtered.filter(b => b.status === 'want');
   const name = friend.displayName || 'They';
 

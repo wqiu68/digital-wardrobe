@@ -6,8 +6,11 @@ export const SHELVES = [
   { id: 'reading', label: 'Reading' },
   { id: 'read',    label: 'Read'    },
   { id: 'want',    label: 'Want to Read' },
+  { id: 'dnf',     label: 'Did Not Finish' },
 ];
-export const SHELF_TITLES = { reading: 'Currently Reading', read: 'Read', want: 'Want to Read' };
+export const SHELF_TITLES = { reading: 'Currently Reading', read: 'Read', want: 'Want to Read', dnf: 'Did Not Finish' };
+// Shelves the All page leaves out (they still have their own tab)
+export const HIDDEN_FROM_ALL = ['dnf'];
 
 const THIS_YEAR = new Date().getFullYear();
 const EMPTY = { title: '', author: '', cover: '', status: 'read', rating: null, readYears: [THIS_YEAR], notes: '', genre: '', year: '', pages: '', isbn: '', olKey: '' };
@@ -55,8 +58,10 @@ export function Stars({ value, onChange, size = 14, on = '#1a1713', off = '#ddd5
   );
 }
 
-export default function BookModal({ book, onSave, onClose }) {
-  const [form, setForm] = useState(book ? { ...EMPTY, ...book, readYears: book.readYears || [], year: book.year ?? '', pages: book.pages ?? '' } : { ...EMPTY });
+export default function BookModal({ book, initialStatus, onSave, onClose }) {
+  // A new book can start on a given shelf; only finished books get a read year
+  const blank = initialStatus ? { ...EMPTY, status: initialStatus, readYears: initialStatus === 'read' ? [THIS_YEAR] : [] } : EMPTY;
+  const [form, setForm] = useState(book ? { ...EMPTY, ...book, readYears: book.readYears || [], year: book.year ?? '', pages: book.pages ?? '' } : { ...blank });
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
